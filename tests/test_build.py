@@ -22,8 +22,15 @@ class BuildTest(unittest.TestCase):
                 self.assertEqual(a.read(), b.read(), 'docs/index.html is stale; rerun tools/build_app.py')
 
     def test_ocr_assets_are_present(self):
-        for name in ('ocr-worker.js', 'eng-fast.js', 'tesseract-core-simd-lstm.wasm.js', 'tesseract-core-lstm.wasm.js'):
+        for name in ('ocr-worker.js', 'ort.wasm.min.js', 'ort-wasm-simd-threaded.mjs', 'ort-wasm-simd-threaded.wasm',
+                     'PP-OCRv6_det_small.onnx', 'PP-OCRv6_rec_small.onnx'):
             self.assertGreater(os.path.getsize(path('docs', 'ocr', name)), 1000, name)
+
+    def test_recognizer_keys_match_the_model_output(self):
+        with open(path('docs', 'ocr', 'keys.json'), encoding='utf-8') as f:
+            keys = json.load(f)
+        self.assertEqual(len(keys), 18710)
+        self.assertEqual((keys[0], keys[-1]), ('', ' '))
 
 
 class DictionaryTest(unittest.TestCase):
