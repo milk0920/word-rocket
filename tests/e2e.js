@@ -168,6 +168,14 @@ async function uploadPhoto(page, file) {
       await page.click('#quit');
       await page.reload();
       assert(await page.$eval('#resumeBtn', e => !e.hidden), 'still resumable after a reload');
+      await page.evaluate(() => { window.__spoken = []; const orig = speechSynthesis.speak.bind(speechSynthesis); speechSynthesis.speak = u => { window.__spoken.push(u.text); return orig(u); }; });
+      await page.click('#resumeBtn');
+      await page.waitForSelector('#vQuiz:not([hidden])');
+      await page.click('#say');
+      await page.waitForTimeout(400);
+      const current = await page.evaluate(() => window.__wr.S.queue[window.__wr.S.i]);
+      const spoken = await page.evaluate(() => window.__spoken);
+      assert(spoken.length > 0 && spoken[spoken.length - 1] === current, 'after resuming, 聽單字 speaks the current word: ' + JSON.stringify([spoken, current]));
     });
 
     await check('WR-2 offline: page, practice and cached photo recognition', async () => {
