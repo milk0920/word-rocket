@@ -1,0 +1,8 @@
+ts	phase	decision	why	evidence	result
+2026-11-08T02:48:25Z	start	started the WR-1 run from the multi-phase plan	Chief gave the go in the Claude Code session	session_01HoVwMdGQH8cA1QCsCseLnw	open
+2026-11-08T02:48:25Z	repo	asked Chief to create the public repo by hand	the Claude GitHub App gets 403 on POST /user/repos	create_repository error 403	waiting on Chief
+2026-11-08T02:48:25Z	pages	serve the site from main:/docs instead of a Pages workflow	branch publishing needs no deploy job and no extra token	README.md	open
+2026-11-08T02:48:25Z	build	pinned every source to a commit and rebuilt dict and OCR files from scratch	a reviewer can rerun the build and get the same bytes	tools/fetch_sources.sh, cmp of dict.json and docs/ocr	identical
+2026-11-08T02:48:25Z	tests	wrote tests/e2e.js covering the ten live lanes from the plan	one script reruns every lane instead of hand checks	tests/e2e.js	10/10 pass locally
+2026-11-08T02:48:25Z	tests	kept the handwritten list photo out of the repo	it is Chief's family photo and the repo is public	tests/fixtures holds only generated sheets	done
+2026-11-08T02:49:28Z	review	removed 22 section banner comments from app.src.html	pstack no-comments keeps only comments that explain a non-obvious why; the comment-sicko agent is not loaded in this session	app.src.html	e2e 10/10 after rebuild

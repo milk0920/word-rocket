@@ -1,0 +1,668 @@
+<title>單字火箭</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Noto+Sans+TC:wght@500;700;900&display=swap">
+<style>
+/* Layout: one phone-width column. Home = sky + rocket on pad + mission panel; quiz = small scene (rocket vs asteroid / monster) above one big task card. Single dark "deep space" look by choice. */
+:root{
+  --space:#0d1238; --space2:#1b1f5e; --nebula:#3a2a7a;
+  --ink:#f3f1ff; --muted:#b7b3e0; --panel:#1a1e52; --panel2:#232868; --line:#343a85;
+  --fuel:#ffb547; --go:#4fe0b6; --warn:#ff7a8a; --planet:#7cc8ff; --rock:#a08a7a; --laser:#7dfcff; --alien:#b67cff;
+  --display:"Baloo 2","Noto Sans TC",system-ui,sans-serif;
+  --body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--space);color:var(--ink);font-family:var(--body);font-size:16px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+#sky{position:fixed;inset:0;width:100%;height:100%;z-index:0;
+  background:radial-gradient(120% 70% at 80% 0%,var(--nebula),transparent 60%),radial-gradient(90% 60% at 0% 100%,var(--space2),transparent 70%),var(--space)}
+.app{position:relative;z-index:1;max-width:460px;margin:0 auto;padding-block:12px 28px;display:flex;flex-direction:column;gap:14px}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px}
+h1{font-family:var(--display);font-weight:800;font-size:28px;line-height:1.1;margin:0}
+h1 small{display:block;font-family:var(--body);font-weight:500;font-size:13px;color:var(--muted);margin-top:3px}
+.hbtns{display:flex;gap:6px;align-items:center}
+.icon{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:6px 9px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:5px}
+.icon svg{width:18px;height:18px}
+.mini{width:16px;height:16px;border-radius:50%;display:inline-block;box-shadow:inset -3px -2px 0 rgba(0,0,0,.25);flex:none}
+.stage{position:relative;height:280px;overflow:hidden}
+.p1{position:absolute;width:140px;height:140px;border-radius:50%;right:-40px;top:6px;background:radial-gradient(circle at 35% 30%,#ffd29a,#f08a5d 45%,#a54a6a);box-shadow:inset -18px -14px 0 rgba(0,0,0,.18)}
+.p1::after{content:"";position:absolute;left:-30px;right:-30px;top:58px;height:22px;border-radius:50%;border:4px solid rgba(255,220,170,.55);transform:rotate(-14deg)}
+.p2{position:absolute;width:60px;height:60px;border-radius:50%;left:6px;top:36px;background:radial-gradient(circle at 35% 30%,#b6f0ff,var(--planet) 50%,#3b63c9)}
+.pad{position:absolute;left:50%;bottom:0;width:190px;height:26px;transform:translateX(-50%);border-radius:40px 40px 6px 6px;background:linear-gradient(#4a4f9c,#2c2f70)}
+.rocket{position:absolute;left:50%;bottom:22px;width:96px;margin-left:-48px;transition:transform 1.8s cubic-bezier(.55,0,.8,.2)}
+.rocket svg,.qrocket svg{display:block;width:100%;height:auto}
+.flame{transform-origin:55px 168px;opacity:.25;transition:opacity .3s}
+.ready .flame{opacity:.7;animation:flick .18s infinite alternate}
+.launched .flame,.qrocket .flame{opacity:1;animation:flick .09s infinite alternate}
+.launched .rocket{transform:translateY(-520px)}
+@keyframes flick{to{transform:scaleY(1.18)}}
+.shake .rocket{animation:shake .08s infinite}
+@keyframes shake{50%{margin-left:-46px}}
+.fuel{position:absolute;left:8px;bottom:40px;width:22px;height:140px;border-radius:12px;border:2px solid var(--line);background:#11143f;overflow:hidden}
+.fuel i{position:absolute;left:0;right:0;bottom:0;height:var(--lvl,8%);background:linear-gradient(var(--fuel),#ff7a3d);transition:height .9s}
+.fuel-lbl{position:absolute;left:36px;bottom:40px;font-size:12px;color:var(--muted);width:80px}
+.panel{background:color-mix(in srgb,var(--panel) 94%,transparent);border:1px solid var(--line);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.panel h2{margin:0;font-size:19px;text-wrap:balance}
+.muted{color:var(--muted);font-size:14px;margin:0;line-height:1.6}
+button{font:inherit;cursor:pointer;border:0;border-radius:14px;padding:13px 16px;font-weight:700;font-size:17px;color:var(--ink)}
+button:disabled{opacity:.45;cursor:default}
+button:focus-visible,textarea:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid var(--planet);outline-offset:2px}
+.primary{background:var(--fuel);color:#2a1600}
+.lensbtn{display:block;text-align:center;text-decoration:none;font-weight:700;font-size:17px;border-radius:14px;padding:13px 16px;background:var(--go);color:#03261c}
+.go{background:var(--go);color:#03261c;font-family:var(--display);font-size:24px;letter-spacing:.04em}
+.ghost{background:transparent;border:1px solid var(--line);font-size:15px;padding:10px 12px}
+.danger{background:transparent;border:1px solid var(--warn);color:var(--warn);font-size:15px;padding:10px 12px}
+textarea,.field{width:100%;box-sizing:border-box;border-radius:12px;border:1px solid var(--line);background:#0f1240;color:var(--ink);font:15px/1.5 var(--body);padding:10px}
+textarea{min-height:130px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>*{flex:1 1 120px;min-width:0}
+.list{display:flex;flex-direction:column;gap:6px;max-height:300px;overflow:auto}
+.item{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center;background:var(--panel2);border-radius:12px;padding:8px 10px}
+.item b{font-size:17px;font-family:var(--display);letter-spacing:.02em;min-width:0;word-break:break-word}
+.item span{grid-column:1;font-size:13px;color:var(--muted);min-width:0}
+.item .x{grid-row:1/3;grid-column:2;background:transparent;border:1px solid var(--line);font-size:13px;padding:6px 10px;border-radius:10px}
+.unk{color:var(--warn)!important}
+a{color:var(--planet)}
+.saved{display:flex;flex-direction:column;gap:6px}
+.saved .srow{display:flex;gap:6px}
+.saved .srow button:first-child{flex:1;text-align:left;background:var(--panel2);font-size:16px;padding:11px 12px;min-width:0}
+.saved .srow button:last-child{flex:none;font-size:13px;padding:6px 10px}
+.route{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center;font-size:12px;color:var(--muted)}
+.route b{display:block;font-size:14px;color:var(--ink)}
+.route div{border:1px solid var(--line);border-radius:12px;padding:7px 3px;min-width:0}
+.route .on{border-color:var(--go);background:color-mix(in srgb,var(--go) 14%,transparent);color:var(--ink)}
+.route .done{opacity:.5}
+.big{font-family:var(--display);font-size:40px;font-weight:800;text-align:center;letter-spacing:.03em;margin:0;line-height:1.1;word-break:break-word}
+.speak{display:flex;align-items:center;justify-content:center;gap:10px;background:var(--planet);color:#06214a;font-size:22px;padding:16px}
+.speak svg{width:30px;height:30px}
+.answer{width:100%;box-sizing:border-box;font:700 26px var(--display);text-align:center;letter-spacing:.05em;padding:12px;border-radius:14px;border:2px solid var(--line);background:#0f1240;color:var(--ink)}
+.fb{border-radius:14px;padding:12px;text-align:center;display:flex;flex-direction:column;gap:4px}
+.fb.ok{background:color-mix(in srgb,var(--go) 18%,transparent);border:1px solid var(--go)}
+.fb.bad{background:color-mix(in srgb,var(--warn) 16%,transparent);border:1px solid var(--warn)}
+.fb .big{font-size:34px}
+.yours{text-decoration:line-through;color:var(--warn)}
+.prog{display:flex;justify-content:space-between;gap:8px;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.dots{display:inline-flex;gap:4px;vertical-align:middle}
+.dots i{width:10px;height:10px;border-radius:50%;border:2px solid var(--go)}
+.dots i.f{background:var(--go)}
+.pattern{font:700 22px var(--display);letter-spacing:.18em;text-align:center;color:var(--fuel);margin:0;word-break:break-word}
+/* quiz scene */
+.scene{position:relative;height:130px;border-radius:14px;overflow:hidden;background:radial-gradient(80% 120% at 80% 50%,#2a2470,#121543)}
+.streak{position:absolute;height:2px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.7));animation:streak 1.2s linear infinite}
+@keyframes streak{from{transform:translateX(420px)}to{transform:translateX(-120px)}}
+.qrocket{position:absolute;left:14px;top:50%;width:44px;margin-top:-22px;transform:rotate(90deg)}
+.target{position:absolute;right:26px;top:50%;width:92px;height:92px;margin-top:-46px}
+.target svg{width:100%;height:100%;display:block;overflow:visible}
+.crack{opacity:0;transition:opacity .2s}
+.cracked .crack{opacity:1}
+.boom{animation:boom .6s forwards}
+@keyframes boom{40%{transform:scale(1.25);opacity:1}to{transform:scale(1.6);opacity:0}}
+.wobble{animation:wob .45s}
+@keyframes wob{25%{transform:translateX(-6px) rotate(-6deg)}75%{transform:translateX(6px) rotate(6deg)}}
+.hit{animation:hit .45s}
+@keyframes hit{30%{filter:brightness(2.2);transform:translateX(8px)}}
+.laser{position:absolute;left:62px;right:110px;top:50%;height:4px;margin-top:-2px;background:var(--laser);box-shadow:0 0 12px var(--laser);border-radius:4px;transform-origin:left;transform:scaleX(0);opacity:0}
+.laser.fire{animation:fire .35s ease-out}
+@keyframes fire{0%{transform:scaleX(0);opacity:1}60%{transform:scaleX(1);opacity:1}to{transform:scaleX(1);opacity:0}}
+.hp{position:absolute;right:18px;top:8px;width:110px;height:10px;border-radius:6px;background:#0c0f33;border:1px solid var(--line);overflow:hidden}
+.hp i{display:block;height:100%;background:linear-gradient(90deg,var(--warn),var(--fuel));transition:width .4s}
+.scene-msg{position:absolute;left:66px;right:130px;bottom:8px;font-size:12px;color:var(--muted);text-align:center}
+/* results */
+.stars{display:flex;justify-content:center;gap:10px}
+.stars svg{width:44px;height:44px}
+.score{text-align:center;font-family:var(--display);font-size:50px;font-weight:800;margin:0;font-variant-numeric:tabular-nums}
+.score small{font-size:20px;color:var(--muted)}
+.rocks{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.rock{background:radial-gradient(circle at 35% 30%,#c9b3a3,var(--rock) 55%,#5e4b45);color:#1d120d;border-radius:46% 54% 50% 50%/55% 45% 55% 45%;padding:10px 14px;font-weight:700;font-family:var(--display);font-size:17px;display:flex;flex-direction:column;align-items:center;gap:3px;max-width:100%;box-sizing:border-box;word-break:break-word;text-align:center}
+.rock small{font:500 12px var(--body)}
+.rock .dots i{border-color:#1d120d}.rock .dots i.f{background:#1d120d}
+.land{position:relative;height:190px;display:grid;place-items:center}
+.newp{width:140px;height:140px;border-radius:50%;box-shadow:inset -20px -16px 0 rgba(0,0,0,.18),0 0 60px rgba(255,255,255,.25);animation:grow 1.2s ease-out}
+.flag{position:absolute;top:14px;left:50%;margin-left:-6px;width:4px;height:52px;background:#eef0ff}
+.flag::after{content:"";position:absolute;left:4px;top:0;width:34px;height:22px;background:var(--fuel);border-radius:0 4px 4px 0}
+@keyframes grow{from{transform:scale(.2);opacity:0}}
+.coll{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.coll div{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;color:var(--muted);max-width:72px;text-align:center;word-break:break-word}
+.coll .mini{width:34px;height:34px}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.switch input[type=checkbox]{width:52px;height:30px;accent-color:var(--go);flex:none}
+.empty{text-align:center;color:var(--muted);padding:14px 6px;font-size:15px;line-height:1.7;margin:0}
+ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
+.msg{font-size:14px;color:var(--fuel);margin:0;text-align:center}
+@media (prefers-reduced-motion:reduce){.rocket{transition:none}.ready .flame,.launched .flame,.qrocket .flame,.shake .rocket,.streak,.newp,.boom,.wobble,.hit,.laser.fire{animation:none}}
+</style>
+
+<canvas id="sky" aria-hidden="true"></canvas>
+<main class="app">
+  <header>
+    <h1>單字火箭<small id="sub">拍好單字，火箭就出發</small></h1>
+    <div class="hbtns">
+      <button class="icon" id="bookBtn" aria-label="錯題本"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5"/></svg><span id="bookN">0</span></button>
+      <button class="icon" id="homeBtn" aria-label="回首頁，我的星球"><span class="mini" style="background:#7cc8ff"></span><span id="planetN">0</span></button>
+      <button class="icon" id="setBtn" aria-label="設定"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg></button>
+    </div>
+  </header>
+
+  <div id="vHome">
+    <section class="stage" id="stage" aria-label="發射台">
+      <div class="p1"></div><div class="p2"></div>
+      <div class="fuel" aria-hidden="true"><i id="fuelBar"></i></div>
+      <div class="fuel-lbl" id="fuelLbl">燃料：0 個單字</div>
+      <div class="rocket" id="rocketSvgHome"></div>
+      <div class="pad"></div>
+    </section>
+
+    <section class="panel" id="s1">
+      <h2>今天的任務：裝燃料</h2>
+      <p class="muted">按綠色按鈕打開 Google 智慧鏡頭，拍單字表、選「文字」、按「複製」，再回到這裡貼上。每個單字就是一格燃料。</p>
+      <a class="primary lensbtn" id="openLens" href="https://lens.google.com/" target="_blank" rel="noopener">打開 Google 智慧鏡頭拍照</a>
+      <button class="primary" id="toPaste">貼上單字</button>
+      <button class="primary" id="toPhoto" style="background:var(--planet);color:#06214a">上傳單字表照片</button>
+      <input type="file" id="photo" accept="image/*" hidden>
+      <button class="ghost" id="toType">自己打字輸入</button>
+      <button class="ghost" id="toHelp">怎麼用 Google 智慧鏡頭複製文字？（拍照或相簿裡的照片都可以）</button>
+      <div id="savedBox" hidden>
+        <p class="muted" style="margin-bottom:6px">存好的單字清單</p>
+        <div class="saved" id="saved"></div>
+      </div>
+      <div id="collBox" hidden>
+        <p class="muted" style="margin-bottom:6px">我的星球</p>
+        <div class="coll" id="homeColl"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="s2" hidden>
+      <h2>貼上單字</h2>
+      <button class="ghost" id="pasteBtn">從剪貼簿貼上</button>
+      <textarea id="paste" aria-label="把複製的單字貼在這裡" placeholder="長按這裡，選「貼上」。&#10;一行一個單字或片語，例如：&#10;1. apple 蘋果&#10;2. ice cream 冰淇淋"></textarea>
+      <p class="msg" id="pasteMsg" hidden></p>
+      <p class="muted">頁面會自動拿掉中文、編號和重複的字。一行是一個單字或片語。</p>
+      <button class="primary" id="clean">整理成單字</button>
+      <button class="ghost" id="s2Back">回上一步</button>
+    </section>
+
+    <section class="panel" id="s4" hidden>
+      <h2>辨識照片裡的單字</h2>
+      <img id="photoPrev" alt="上傳的單字表照片" style="max-height:200px;object-fit:contain;border-radius:12px;border:1px solid var(--line)">
+      <p class="msg" id="ocrMsg">準備中…</p>
+      <p class="muted" id="ocrSub">第一次使用要下載辨識程式（約 9 MB），請稍等。之後就會比較快。</p>
+      <button class="ghost" id="ocrCancel">取消</button>
+    </section>
+
+    <section class="panel" id="s3" hidden>
+      <h2 id="readyTitle">確認單字</h2>
+      <p class="muted">多的字按「拿掉」。查不到意思的字可以用 Google 翻譯查。</p>
+      <p class="msg" id="photoNote" hidden>照片辨識可能會認錯字。紅色的字是字典查不到的，請對照課本檢查，認錯的就拿掉，再用下面的框框打正確的字。</p>
+      <div class="list" id="wlist"></div>
+      <form id="addForm" class="row" style="flex-wrap:nowrap">
+        <input class="field" id="addWord" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="打一個單字或片語" aria-label="打一個單字或片語" style="flex:1 1 auto">
+        <button class="primary" type="submit" style="flex:none;font-size:16px;padding:10px 16px">加入</button>
+      </form>
+      <p class="msg" id="addMsg" hidden></p>
+      <label class="muted" for="listName">清單名稱</label>
+      <input class="field" id="listName" autocomplete="off">
+      <div class="route" aria-label="這趟任務的路線">
+        <div class="on"><b>起飛</b>全部考一次</div><div><b>隕石帶</b>只練錯的字</div><div><b>總複習</b>打倒怪物</div><div><b>新星球</b>完全通過</div>
+      </div>
+      <button class="go" id="launch">發射！</button>
+      <div class="row"><button class="ghost" id="toLearn">先看單字卡</button><button class="ghost" id="s3Back">改單字</button></div>
+    </section>
+  </div>
+
+  <section class="panel" id="vHelp" hidden>
+    <h2>用 Google 智慧鏡頭複製單字</h2>
+    <ol class="steps">
+      <li>打開「Google」App 或相機，點<b>智慧鏡頭</b>圖示。</li>
+      <li>對準單字表拍照，選下方的<b>「文字」</b>。</li>
+      <li>點<b>「全選」</b>，再按<b>「複製」</b>。</li>
+      <li>回到單字火箭，按<b>「貼上單字」</b>。</li>
+    </ol>
+    <p class="muted">拍的時候讓單字表平放、光線亮一點，比較不會認錯字。第一次可以請大人示範一次。</p>
+    <h2>照片已經拍好了？</h2>
+    <ol class="steps">
+      <li>打開「Google 相簿」，點那張單字表照片。</li>
+      <li>點下方的<b>智慧鏡頭</b>圖示，再選<b>「文字」</b>。</li>
+      <li>點<b>「全選」</b>，按<b>「複製」</b>，回來按<b>「貼上單字」</b>。</li>
+    </ol>
+    <button class="primary" id="helpOk">知道了</button>
+  </section>
+
+  <section class="panel" id="vLearn" hidden>
+    <div class="prog"><span>單字卡</span><span id="lProg">1 / 8</span></div>
+    <button id="card" style="background:var(--panel2);border:1px solid var(--line);min-height:190px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px">
+      <span class="big" id="cFront"></span><span class="muted" id="cBack" hidden></span><span class="muted" id="cHint">點一下翻面，會念出來</span>
+    </button>
+    <div class="row"><button class="ghost" id="lPrev">上一個</button><button class="ghost" id="lNext">下一個</button></div>
+    <button class="go" id="lGo">準備好了，發射！</button>
+  </section>
+
+  <section class="panel" id="vQuiz" hidden>
+    <div class="route" id="qRoute"></div>
+    <div class="scene" id="scene" aria-hidden="true">
+      <div class="qrocket" id="qrocket"></div>
+      <div class="laser" id="laser"></div>
+      <div class="target" id="target"></div>
+      <div class="hp" id="hp" hidden><i id="hpBar"></i></div>
+      <div class="scene-msg" id="sceneMsg"></div>
+    </div>
+    <div class="prog"><span id="qPhase"></span><span id="qProg"></span></div>
+    <button class="speak" id="say"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>聽單字</button>
+    <div class="row"><button class="ghost" id="slow">慢速再聽</button><button class="ghost" id="hint">提示</button></div>
+    <p class="pattern" id="qHint" hidden></p>
+    <p class="muted" id="qStreak" style="text-align:center" hidden></p>
+    <form id="qForm" style="display:flex;flex-direction:column;gap:10px">
+      <input class="answer" id="ans" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="拼出你聽到的單字" placeholder="拼拼看">
+      <button class="primary" type="submit">送出</button>
+    </form>
+    <div class="fb" id="fb" hidden></div>
+    <button class="primary" id="next" hidden>下一個</button>
+    <button class="ghost" id="quit" style="font-size:13px;padding:8px">結束這次任務，回首頁</button>
+  </section>
+
+  <section class="panel" id="vResult" hidden>
+    <h2 id="rTitle" style="text-align:center"></h2>
+    <p class="score" id="rScore"></p>
+    <div class="stars" id="rStars"></div>
+    <p class="muted" id="rMsg" style="text-align:center"></p>
+    <div class="rocks" id="rRocks"></div>
+    <button class="go" id="rNext"></button>
+  </section>
+
+  <section class="panel" id="vLand" hidden>
+    <div class="land"><div class="newp" id="newp"></div><div class="flag"></div></div>
+    <h2 style="text-align:center" id="landTitle"></h2>
+    <p class="muted" style="text-align:center">你打倒了怪物，登陸一顆新星球！</p>
+    <div class="coll" id="coll"></div>
+    <button class="primary" id="landHome">回首頁</button>
+  </section>
+
+  <section class="panel" id="vBook" hidden>
+    <h2>錯題本</h2>
+    <p class="muted">以前答錯的字都在這裡。每個字連續答對 2 次就會移出。</p>
+    <div class="rocks" id="bRocks"></div>
+    <button class="go" id="bGo">複習錯題本</button>
+    <button class="ghost" id="bHome">回首頁</button>
+  </section>
+
+  <section class="panel" id="vSet" hidden>
+    <h2>設定</h2>
+    <label class="switch"><span><b>長期錯題本</b><br><span class="muted">開啟：答錯的字跨單元累積，上方出現錯題本按鈕。<br>關閉：不記錄，也不顯示按鈕。</span></span><input type="checkbox" id="bookOn" checked></label>
+    <label class="switch"><span><b>發音速度</b><br><span class="muted">「聽單字」用的速度</span></span>
+      <select id="rate" class="field" style="width:auto"><option value="0.75">慢一點</option><option value="0.9">正常</option></select></label>
+    <label class="switch"><span><b>發音口音</b><br><span class="muted">美式或英式，跟學校老師的念法一樣就好</span></span>
+      <select id="accent" class="field" style="width:auto"><option value="en-US">美式</option><option value="en-GB">英式</option></select></label>
+    <button class="ghost" id="tryVoice">試聽：banana, water, tomato</button>
+    <button class="danger" id="wipe">清除所有紀錄</button>
+    <p class="msg" id="wipeMsg" hidden></p>
+    <p class="muted">紀錄只存在這台裝置的瀏覽器裡，換裝置不會跟過去。單字意思來自 ECDICT 字典（MIT 授權），簡轉繁使用 OpenCC 詞表（Apache-2.0 授權）。</p>
+    <button class="ghost" id="setHome">回首頁</button>
+  </section>
+</main>
+
+<script type="application/json" id="dictData">/*DICT*/</script>
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const DICT=JSON.parse($('dictData').textContent);
+  const W=DICT.w, F=DICT.f, FORMS=DICT.fn;
+
+  const ROCKET='<svg viewBox="0 0 110 220" role="img" aria-label="火箭"><g class="flame"><path d="M38 168 Q55 230 72 168 Z" fill="#ffb547"/><path d="M46 168 Q55 205 64 168 Z" fill="#fff3c4"/></g><path d="M55 6 C86 34 90 92 82 168 L28 168 C20 92 24 34 55 6 Z" fill="#eef0ff"/><path d="M55 6 C70 19 79 36 83 56 L27 56 C31 36 40 19 55 6 Z" fill="#ff6b7d"/><circle cx="55" cy="92" r="17" fill="#2a3b8f" stroke="#9fb4ff" stroke-width="5"/><circle cx="49" cy="86" r="5" fill="#cfe0ff"/><path d="M28 120 L6 166 L30 160 Z" fill="#ff6b7d"/><path d="M82 120 L104 166 L80 160 Z" fill="#ff6b7d"/><rect x="40" y="160" width="30" height="10" rx="3" fill="#9aa3d8"/></svg>';
+  $('rocketSvgHome').innerHTML=ROCKET; $('qrocket').innerHTML=ROCKET;
+  const ROCK='<svg viewBox="0 0 100 100"><defs><radialGradient id="rg" cx=".35" cy=".3"><stop offset="0" stop-color="#d6c2b2"/><stop offset=".55" stop-color="#a08a7a"/><stop offset="1" stop-color="#5e4b45"/></radialGradient></defs><path d="M50 6 C74 4 94 22 95 46 C97 72 80 94 54 95 C28 97 6 80 5 54 C4 30 24 8 50 6 Z" fill="url(#rg)"/><circle cx="34" cy="36" r="9" fill="#7e6a5e"/><circle cx="66" cy="62" r="12" fill="#7e6a5e"/><circle cx="40" cy="72" r="6" fill="#7e6a5e"/><path class="crack" d="M52 8 L46 30 L58 42 L44 58 L54 74 L48 94" fill="none" stroke="#2a1a14" stroke-width="4" stroke-linejoin="round"/></svg>';
+  const ALIEN='<svg viewBox="0 0 100 100"><path d="M30 18 Q26 4 18 6" stroke="#b67cff" stroke-width="4" fill="none"/><circle cx="17" cy="6" r="5" fill="#ffd36b"/><path d="M70 18 Q74 4 82 6" stroke="#b67cff" stroke-width="4" fill="none"/><circle cx="83" cy="6" r="5" fill="#ffd36b"/><path d="M14 60 C10 26 34 14 50 14 C66 14 90 26 86 60 C84 80 74 94 50 94 C26 94 16 80 14 60 Z" fill="#b67cff"/><path d="M18 78 Q8 86 6 98 M82 78 Q92 86 94 98" stroke="#8a52d6" stroke-width="6" fill="none" stroke-linecap="round"/><circle cx="50" cy="44" r="17" fill="#fff"/><circle cx="53" cy="46" r="8" fill="#1d1340"/><circle cx="56" cy="43" r="2.5" fill="#fff"/><path d="M34 70 Q50 82 66 70" fill="#3a1e66"/><path d="M40 72 l3 5 l3 -4 l3 5 l3 -5 l3 5 l3 -5" fill="none" stroke="#fff" stroke-width="2"/></svg>';
+  const STAR_TARGET='<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="34" fill="#ffd36b" opacity=".25"/><path d="M50 18l8 18 20 2-15 13 5 20-18-11-18 11 5-20-15-13 20-2z" fill="#ffd36b"/></svg>';
+  // streaks in the scene
+  for(let i=0;i<7;i++){const s=document.createElement('div');s.className='streak';s.style.top=(10+i*16)+'px';s.style.width=(40+Math.random()*60)+'px';s.style.animationDelay=(-Math.random()*1.2)+'s';s.style.animationDuration=(0.9+Math.random()*0.8)+'s';$('scene').prepend(s);}
+
+  const KEY='wordRocket.v1';
+  const fresh=()=>({lists:{},book:{},planets:[],settings:{bookOn:true,rate:0.9,accent:'en-US'}});
+  let D=fresh();
+  try{const raw=localStorage.getItem(KEY);if(raw){const o=JSON.parse(raw);D=Object.assign(fresh(),o);D.settings=Object.assign(fresh().settings,o.settings||{});}}catch(e){}
+  const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(D));}catch(e){}};
+
+  const VIEWS=['vHome','vHelp','vLearn','vQuiz','vResult','vLand','vBook','vSet'];
+  const view=v=>{VIEWS.forEach(x=>$(x).hidden=x!==v);scrollTo(0,0);};
+  const homeStep=s=>['s1','s2','s3','s4'].forEach(x=>$(x).hidden=x!==s);
+  const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+  const norm=s=>String(s).toLowerCase().replace(/[’‘`]/g,"'").replace(/\s+/g,' ').trim();
+  const same=(a,b)=>{const c=s=>norm(s).replace(/-/g,' ').replace(/\s+/g,' ').trim();return c(a)===c(b);};  // yo-yo = yo yo
+  const COLORS=['radial-gradient(circle at 35% 30%,#d6ffcf,#5fd39a 50%,#2a7a6a)','radial-gradient(circle at 35% 30%,#fff1b8,#ffd36b 50%,#c9852a)','radial-gradient(circle at 35% 30%,#ecdcff,#c49bff 50%,#6a43b8)','radial-gradient(circle at 35% 30%,#ffe0e6,#ff9fb2 50%,#c2506a)','radial-gradient(circle at 35% 30%,#dff7ff,#8fe3ff 50%,#2f86b8)','radial-gradient(circle at 35% 30%,#ffd29a,#f08a5d 50%,#a54a6a)'];
+  function lookup(text){
+    const k=norm(text);
+    if(W[k]!=null)return {m:W[k]};
+    if(F[k]){const [lem,code]=F[k];if(W[lem]!=null)return {m:W[lem],note:lem+' 的'+FORMS[code]};}
+    return null;
+  }
+  const meaning=t=>{const r=lookup(t);return r?(r.note?'（'+r.note+'）':'')+r.m:'';};
+
+  const KEEP_CASE=/^(monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|may|june|july|august|september|october|november|december|english|chinese|taiwan|taipei|i)$/;
+  function tidyCase(s){
+    return s.split(' ').map(w=>{
+      if(/^[A-Z]{2,4}$/.test(w))return w;                    // MRT, TV, USA
+      const l=w.toLowerCase();
+      if(KEEP_CASE.test(l)&&/^[A-Z]/.test(w))return l==='i'?'I':l[0].toUpperCase()+l.slice(1);
+      return l;
+    }).join(' ');
+  }
+  function parse(text,photo){
+    const out=[],seen=new Set();
+    for(let line of text.split(/\r?\n/)){
+      if(/^\s*(unit|lesson|chapter|module)\b/i.test(line))continue;  // title line, e.g. "Unit 5 My Day"
+      line=line.replace(/[^\x00-\x7F]+/g,'  ');                 // Chinese & full-width -> gap
+      line=line.replace(/^\s*[\(\[]?\d+\s*[\.\)\]:]?\s*/,'');     // leading numbering
+      line=line.replace(/(^|\s)(n|v|vt|vi|adj|adv|prep|conj|pron|art|num|aux|int|phr|ph)\.(?=\s|$)/gi,' ');
+      for(let part of line.split(/[,;\/|\t]|\s{2,}|\d+/)){
+        part=part.replace(/[^A-Za-z' .\-]/g,' ').replace(/\s+/g,' ').trim().replace(/^[\s.'-]+|[\s'-]+$/g,'');
+        if(!/[A-Za-z]{1,}/.test(part))continue;
+        if(part.length===1)continue;
+        if(/^(unit|lesson|part|page|chapter|review|words?|vocabulary|n|v|vt|vi|adj|adv|prep|conj|pron|art|num|aux)$/i.test(part))continue;
+        if(/^[A-Z]{2,4}$/.test(part)&&!lookup(part))continue;      // stray capitals that are not real words (OCR noise)
+        if(photo&&!lookup(part)){                                   // OCR noise: unknown short bits
+          const toks=part.split(' ');
+          if(toks.length===1&&part.length<=3)continue;
+          if(toks.length>1&&toks.some(t=>t.length<=2&&!lookup(t)&&!/^[aI]$/i.test(t)))continue;
+        }
+        part=tidyCase(part);
+        const k=norm(part);if(seen.has(k))continue;seen.add(k);out.push(part);
+      }
+    }
+    return out;
+  }
+
+  const synth=window.speechSynthesis;let voice=null;
+  function pickVoice(){if(!synth)return;const vs=synth.getVoices(),re=D.settings.accent==='en-GB'?/en[-_]GB/i:/en[-_]US/i;
+    voice=vs.find(v=>re.test(v.lang)&&/google/i.test(v.name))||vs.find(v=>re.test(v.lang))||vs.find(v=>/^en/i.test(v.lang))||null;}
+  if(synth){pickVoice();synth.onvoiceschanged=pickVoice;}
+  function speak(w,rate){
+    if(!synth){$('sceneMsg').textContent='這台裝置不能發音';return false;}
+    synth.cancel();const u=new SpeechSynthesisUtterance(w);u.lang=D.settings.accent;if(voice)u.voice=voice;u.rate=rate||D.settings.rate;synth.speak(u);return true;
+  }
+
+  const stage=$('stage');
+  function header(){
+    $('bookN').textContent=Object.keys(D.book).length;$('bookBtn').hidden=!D.settings.bookOn;
+    $('planetN').textContent=D.planets.length;
+  }
+  function fuel(n){$('fuelBar').style.setProperty('--lvl',Math.min(100,8+n*6)+'%');$('fuelLbl').textContent='燃料：'+n+' 個單字';}
+  function renderSaved(){
+    const names=Object.keys(D.lists).sort((a,b)=>(D.lists[b].t||0)-(D.lists[a].t||0));
+    $('savedBox').hidden=!names.length;const box=$('saved');box.innerHTML='';
+    names.forEach(n=>{const r=document.createElement('div');r.className='srow';
+      const b1=document.createElement('button');b1.textContent=n+'（'+D.lists[n].w.length+' 個字）';b1.onclick=()=>ready(D.lists[n].w.slice(),n);
+      const b2=document.createElement('button');b2.className='ghost';b2.textContent='刪除';
+      b2.onclick=()=>{if(b2.dataset.sure){delete D.lists[n];save();renderSaved();}else{b2.dataset.sure=1;b2.textContent='再按一次刪除';b2.className='danger';}};
+      r.append(b1,b2);box.appendChild(r);});
+    $('collBox').hidden=!D.planets.length;$('homeColl').innerHTML=collHTML();
+  }
+  function collHTML(){return D.planets.map(p=>'<div><span class="mini" style="background:'+COLORS[p.c%COLORS.length]+'"></span>'+esc(p.n)+'</div>').join('');}
+  function goHome(){if(synth)synth.cancel();stage.classList.remove('ready','launched','shake');fuel(0);homeStep('s1');renderSaved();view('vHome');}
+  $('homeBtn').onclick=goHome;$('setHome').onclick=$('bHome').onclick=$('landHome').onclick=goHome;
+  $('setBtn').onclick=()=>{$('bookOn').checked=D.settings.bookOn;$('rate').value=String(D.settings.rate);$('accent').value=D.settings.accent;$('wipeMsg').hidden=true;view('vSet');};
+  $('bookBtn').onclick=()=>{renderBook();view('vBook');};
+  $('toHelp').onclick=()=>view('vHelp');$('helpOk').onclick=goHome;
+  $('toPaste').onclick=()=>{homeStep('s2');$('pasteMsg').hidden=true;};
+  // Android: open the Google Lens app directly; elsewhere (or if it is missing) fall back to lens.google.com
+  const isAndroid=/Android/i.test(navigator.userAgent);
+  if(isAndroid)$('openLens').href='intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=com.google.ar.lens;S.browser_fallback_url='+encodeURIComponent('https://lens.google.com/')+';end';
+  let lensOut=false;
+  $('openLens').addEventListener('click',()=>{lensOut=true;});
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible'&&lensOut){lensOut=false;homeStep('s2');view('vHome');
+      $('pasteMsg').textContent='複製好了嗎？按「從剪貼簿貼上」，或長按下面的框框選「貼上」。';$('pasteMsg').hidden=false;}
+  });
+  $('s2Back').onclick=()=>homeStep('s1');
+  let ocrWorker=null,ocrJob=0,ocrTimer=null;
+  $('toPhoto').onclick=()=>{$('photo').value='';$('photo').click();};
+  $('ocrCancel').onclick=()=>{ocrJob++;clearInterval(ocrTimer);if(ocrWorker){ocrWorker.terminate();ocrWorker=null;}homeStep('s1');};
+  $('photo').onchange=async()=>{
+    const f=$('photo').files&&$('photo').files[0];if(!f)return;
+    const job=++ocrJob;homeStep('s4');
+    const url=URL.createObjectURL(f);$('photoPrev').src=url;
+    const t0=Date.now();let stage='準備照片';
+    const tick=()=>{$('ocrMsg').textContent=stage+'…（'+Math.round((Date.now()-t0)/1000)+' 秒）';};
+    clearInterval(ocrTimer);ocrTimer=setInterval(tick,500);tick();
+    try{
+      const png=await prepImage(f);
+      if(job!==ocrJob)return;
+      if(!ocrWorker)ocrWorker=new Worker('ocr/ocr-worker.js');
+      const tsv=await new Promise((res,rej)=>{
+        ocrWorker.onmessage=e=>{const m=e.data;
+          if(m.stage==='load'){stage=ocrWorker.__loaded?'正在辨識照片':'下載辨識程式';$('ocrSub').hidden=!!ocrWorker.__loaded;}
+          else if(m.stage==='read'){ocrWorker.__loaded=true;stage='正在辨識照片';$('ocrSub').hidden=true;}
+          else if(m.error)rej(new Error(m.error));else res(m.tsv);};
+        ocrWorker.onerror=e=>rej(new Error(e.message||'worker'));
+        ocrWorker.postMessage({base:new URL('ocr/',location.href).href,image:png},[png]);
+      });
+      if(job!==ocrJob)return;
+      clearInterval(ocrTimer);
+      const list=parse(tsvToText(tsv),true);
+      if(!list.length){$('ocrMsg').textContent='照片裡沒有認出英文單字。換一張比較清楚、光線比較亮的照片試試，或用打字輸入。';return;}
+      const d=new Date();ready(list,(d.getMonth()+1)+'/'+d.getDate()+' 的單字',true);
+    }catch(err){
+      if(job!==ocrJob)return;clearInterval(ocrTimer);
+      $('ocrMsg').textContent='辨識沒有成功。請檢查網路後再試一次，或改用「貼上單字」、「自己打字輸入」。';$('ocrSub').hidden=true;
+      if(ocrWorker){ocrWorker.terminate();ocrWorker=null;}
+    }finally{setTimeout(()=>URL.revokeObjectURL(url),60000);}
+  };
+  async function prepImage(file){
+    let bmp;
+    try{bmp=await createImageBitmap(file,{imageOrientation:'from-image'});}
+    catch(e){bmp=await new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=URL.createObjectURL(file);});}
+    const w0=bmp.width,h0=bmp.height,long=Math.max(w0,h0);
+    const k=long>2200?2200/long:long<1400?1400/long:1;
+    const W=Math.round(w0*k),H=Math.round(h0*k);
+    const c=document.createElement('canvas');c.width=W;c.height=H;
+    const g=c.getContext('2d',{willReadFrequently:true});g.drawImage(bmp,0,0,W,H);
+    // flatten uneven lighting: divide by a heavily blurred copy (the paper's background)
+    const bc=document.createElement('canvas');const bw=Math.max(8,Math.round(W/24)),bh=Math.max(8,Math.round(H/24));
+    bc.width=bw;bc.height=bh;const bg=bc.getContext('2d',{willReadFrequently:true});
+    bg.filter='blur(2px)';bg.drawImage(c,0,0,bw,bh);
+    const big=document.createElement('canvas');big.width=W;big.height=H;const bgg=big.getContext('2d',{willReadFrequently:true});
+    bgg.imageSmoothingEnabled=true;bgg.drawImage(bc,0,0,W,H);
+    const px=g.getImageData(0,0,W,H),bp=bgg.getImageData(0,0,W,H).data,d=px.data;
+    for(let i=0;i<d.length;i+=4){
+      const y=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+      const b=Math.max(40,0.299*bp[i]+0.587*bp[i+1]+0.114*bp[i+2]);
+      let v=255*y/b;v=v>=255?255:(v-110)*1.8+110;v=v<0?0:v>255?255:v;
+      d[i]=d[i+1]=d[i+2]=v;d[i+3]=255;
+    }
+    g.putImageData(px,0,0);
+    const blob=await new Promise(r=>c.toBlob(r,'image/png'));
+    return await blob.arrayBuffer();
+  }
+  function tsvToText(tsv){
+    const lines=new Map();
+    for(const row of String(tsv||'').split('\n')){
+      const c=row.split('\t');if(c.length<12||c[0]!=='5')continue;
+      const key=c[2]+'-'+c[3]+'-'+c[4],conf=parseFloat(c[10]),txt=c.slice(11).join(' ').trim();
+      const clean=txt.replace(/^[^A-Za-z]+|[^A-Za-z]+$/g,'');
+      const good=conf>=55&&/^[A-Za-z][A-Za-z'.\-]*$/.test(clean)&&!/^\d/.test(txt);
+      if(!lines.has(key))lines.set(key,[]);
+      lines.get(key).push({t:good?clean:'',l:+c[6],r:+c[6]+(+c[8]),h:+c[9]});
+    }
+    // words far apart (table columns) or with a dropped word between them become separate items
+    return [...lines.values()].map(ws=>{let out='',prev=null;
+      for(const w of ws){
+        if(prev){const gap=w.l-prev.r,h=Math.max(prev.h,w.h,1);out+=(!w.t||!prev.t||gap>h*0.9)?'  ':' ';}
+        out+=w.t;prev=w;}
+      return out;}).join('\n');
+  }
+  $('toType').onclick=()=>{const d=new Date();ready([],(d.getMonth()+1)+'/'+d.getDate()+' 的單字');setTimeout(()=>$('addWord').focus(),50);};
+  $('addForm').onsubmit=e=>{e.preventDefault();
+    const got=parse($('addWord').value),have=new Set(SET.map(norm));let added=0,dup=0;
+    got.forEach(w=>{if(have.has(norm(w)))dup++;else{SET.push(w);have.add(norm(w));added++;}});
+    $('addMsg').hidden=!(dup||(!got.length&&$('addWord').value.trim()));
+    $('addMsg').textContent=dup?'這個字已經在清單裡了':'請用英文字母輸入';
+    if(added){$('addWord').value='';renderList();const l=$('wlist');l.scrollTop=l.scrollHeight;}
+    $('addWord').focus();};
+  $('pasteBtn').onclick=async()=>{
+    try{const t=await navigator.clipboard.readText();if(t){$('paste').value=t;$('pasteMsg').hidden=true;return;}throw 0;}
+    catch(e){$('pasteMsg').textContent='沒辦法直接讀剪貼簿。請長按下面的框框，選「貼上」。';$('pasteMsg').hidden=false;}
+  };
+  $('clean').onclick=()=>{const l=parse($('paste').value);
+    if(!l.length){$('pasteMsg').textContent='沒有找到英文單字。先用智慧鏡頭複製，再貼到框框裡。';$('pasteMsg').hidden=false;return;}
+    const d=new Date();ready(l,(d.getMonth()+1)+'/'+d.getDate()+' 的單字');};
+
+  let SET=[],NAME='';
+  function renderList(){
+    const box=$('wlist');box.innerHTML='';
+    SET.forEach((w,idx)=>{const d=document.createElement('div');d.className='item';
+      d.innerHTML='<b></b><span></span><button class="x">拿掉</button>';
+      d.querySelector('b').textContent=w;
+      const sp=d.querySelector('span'),m=meaning(w);
+      if(m)sp.textContent=m;else{sp.className='unk';sp.innerHTML='查無意思 · <a target="_blank" rel="noopener">用 Google 翻譯查</a>';sp.querySelector('a').href='https://translate.google.com/?sl=en&tl=zh-TW&text='+encodeURIComponent(w);}
+      d.querySelector('.x').onclick=()=>{SET.splice(idx,1);renderList();};
+      box.appendChild(d);});
+    fuel(SET.length);$('readyTitle').textContent=SET.length?'確認單字（'+SET.length+' 個）':'打字輸入單字';$('launch').disabled=!SET.length;$('toLearn').disabled=!SET.length;
+    if(!SET.length)box.innerHTML='<p class="empty">在下面的框框打一個單字或片語，按「加入」。</p>';
+  }
+  function ready(list,name,fromPhoto){$('photoNote').hidden=!fromPhoto;SET=list;NAME=name;$('listName').value=name;renderList();stage.classList.add('ready');homeStep('s3');view('vHome');}
+  $('s3Back').onclick=()=>{$('paste').value=SET.join('\n');stage.classList.remove('ready');homeStep('s2');};
+  $('launch').title='';
+  function keepList(){NAME=$('listName').value.trim()||NAME||'我的單字';D.lists[NAME]={w:SET.slice(),t:Date.now()};save();}
+  $('launch').onclick=()=>{
+    if(!SET.length)return;keepList();
+    stage.classList.add('shake');
+    setTimeout(()=>{stage.classList.remove('shake');stage.classList.add('launched');},600);
+    setTimeout(()=>startMission(),1900);
+  };
+
+  let li=0;
+  function card(){const w=SET[li];$('cFront').textContent=w;$('cBack').textContent=meaning(w)||'（查無意思）';$('cBack').hidden=true;$('cHint').hidden=false;$('lProg').textContent=(li+1)+' / '+SET.length;}
+  $('toLearn').onclick=()=>{li=0;card();view('vLearn');};
+  $('card').onclick=()=>{$('cBack').hidden=!$('cBack').hidden;$('cHint').hidden=true;speak(SET[li]);};
+  $('lNext').onclick=()=>{li=(li+1)%SET.length;card();};
+  $('lPrev').onclick=()=>{li=(li-1+SET.length)%SET.length;card();};
+  $('lGo').onclick=()=>{view('vHome');$('launch').click();};
+
+  const PH={full:'起飛：全部考一次',belt:'隕石帶：只練錯的字',final:'總複習：打倒怪物',book:'錯題本複習'};
+  const S={phase:'full',pending:new Set(),streak:{},queue:[],i:0,right:0,asked:0,hp:0,busy:false};
+  function startMission(){S.pending=new Set();S.streak={};startRound('full');}
+  function startRound(phase){
+    S.phase=phase;
+    const pool=phase==='belt'?[...S.pending]:phase==='book'?Object.keys(D.book):SET;
+    S.queue=shuffle(pool);S.i=0;S.right=0;S.asked=0;S.hp=S.queue.length;
+    view('vQuiz');setScene();ask();
+  }
+  function route(){
+    if(S.phase==='book'){$('qRoute').innerHTML='<div class="on" style="grid-column:1/-1"><b>錯題本複習</b>連續答對 2 次就移出</div>';return;}
+    const steps=[['full','起飛'],['belt','隕石帶'],['final','總複習'],['land','新星球']],idx=steps.findIndex(s=>s[0]===S.phase);
+    $('qRoute').innerHTML=steps.map((s,k)=>'<div class="'+(k===idx?'on':k<idx?'done':'')+'"><b>'+s[1]+'</b></div>').join('');
+  }
+  function setScene(){
+    const t=$('target');t.className='target';
+    t.innerHTML=S.phase==='final'?ALIEN:(S.phase==='belt'||S.phase==='book')?ROCK:STAR_TARGET;
+    $('hp').hidden=S.phase!=='final';hpBar();
+    $('sceneMsg').textContent=S.phase==='final'?'答對就打怪物一下':S.phase==='full'?'答對就收集星星':'答對 2 次打碎隕石';
+  }
+  function hpBar(){$('hpBar').style.width=(S.queue.length?100*S.hp/S.queue.length:0)+'%';}
+  const streakOf=w=>S.phase==='book'?(D.book[w]||0):(S.streak[w]||0);
+  const dots=n=>'<span class="dots"><i class="'+(n>0?'f':'')+'"></i><i class="'+(n>1?'f':'')+'"></i></span>';
+  function ask(){
+    route();S.busy=false;const w=S.queue[S.i];
+    $('qPhase').textContent=PH[S.phase];$('qProg').textContent=(S.i+1)+' / '+S.queue.length;
+    $('qHint').hidden=true;$('ans').value='';$('fb').hidden=true;$('next').hidden=true;$('qForm').hidden=false;
+    const rocky=S.phase==='belt'||S.phase==='book';$('qStreak').hidden=!rocky;
+    if(rocky){$('qStreak').innerHTML='這顆隕石：'+dots(streakOf(w))+'（連續答對 2 次就打碎）';const t=$('target');t.className='target'+(streakOf(w)>0?' cracked':'');t.innerHTML=ROCK;}
+    setTimeout(()=>speak(w),250);
+  }
+  $('say').onclick=()=>speak(S.queue[S.i]);
+  $('slow').onclick=()=>speak(S.queue[S.i],0.5);
+  $('hint').onclick=()=>{const w=S.queue[S.i];$('qHint').textContent=w.split(' ').map(p=>p.split('').map((c,k)=>k===0||!/[a-z]/i.test(c)?c:'_').join(' ')).join('   ');$('qHint').hidden=false;};
+  $('qForm').onsubmit=e=>{e.preventDefault();if(!S.busy)check($('ans').value);};
+  $('quit').onclick=goHome;
+  function anim(el,cls,ms){el.classList.remove(cls);void el.offsetWidth;el.classList.add(cls);setTimeout(()=>el.classList.remove(cls),ms);}
+  function check(raw){
+    const w=S.queue[S.i];if(!norm(raw))return;
+    S.busy=true;const ok=same(raw,w);S.asked++;if(ok)S.right++;
+    const t=$('target');
+    if(S.phase==='full'||S.phase==='final'){if(!ok){S.pending.add(w);S.streak[w]=0;}}
+    else if(S.phase==='belt'){if(ok){S.streak[w]=(S.streak[w]||0)+1;if(S.streak[w]>=2)S.pending.delete(w);}else S.streak[w]=0;}
+    else if(S.phase==='book'){if(ok){D.book[w]=(D.book[w]||0)+1;if(D.book[w]>=2)delete D.book[w];}else D.book[w]=0;}
+    if(!ok&&D.settings.bookOn&&S.phase!=='book')D.book[w]=0;
+    save();header();
+    // scene
+    if(ok){anim($('laser'),'fire',360);
+      setTimeout(()=>{
+        if(S.phase==='final'){S.hp--;hpBar();anim(t,'hit',460);}
+        else if(S.phase==='full'){anim(t,'hit',460);}
+        else{const n=S.phase==='book'?(D.book[w]==null?2:D.book[w]):S.streak[w];if(n>=2)t.classList.add('boom');else t.classList.add('cracked');}
+      },200);
+    }else{
+      if(S.phase==='belt'||S.phase==='book')t.classList.remove('cracked');
+      anim(t,'wobble',460);
+    }
+    const fb=$('fb');fb.hidden=false;$('qForm').hidden=true;$('qHint').hidden=true;
+    if(ok){
+      let extra='';
+      if(S.phase==='belt'||S.phase==='book'){const n=S.phase==='book'?(D.book[w]==null?2:D.book[w]):S.streak[w];extra=n>=2?'<span>隕石打碎了！</span>':'<span>再答對 1 次就能打碎這顆隕石 '+dots(n)+'</span>';$('qStreak').innerHTML='這顆隕石：'+dots(n);}
+      fb.className='fb ok';fb.innerHTML='<b style="font-size:22px">答對了！</b><span class="muted">'+esc(w)+' · '+esc(meaning(w)||'')+'</span>'+extra;
+      setTimeout(next,extra?1500:1000);
+    }else{
+      fb.className='fb bad';
+      fb.innerHTML='<span class="muted">你拼的是 <span class="yours"></span></span><p class="big"></p><span></span><span class="muted"></span>';
+      fb.querySelector('.yours').textContent=raw.trim();fb.querySelector('.big').textContent=w;
+      fb.children[2].textContent=meaning(w)||'';
+      fb.children[3].textContent=S.phase==='book'?'這顆隕石的裂痕修好了，再試一次。':S.phase==='belt'?'隕石的裂痕修好了，等一下再打它。':'這個字會變成隕石，等一下再練。';
+      setTimeout(()=>speak(w,0.5),300);$('next').hidden=false;$('next').focus();
+    }
+  }
+  $('next').onclick=next;
+  function next(){if($('vQuiz').hidden)return;S.i++;if(S.i<S.queue.length)ask();else roundEnd();}
+
+  const star=on=>'<svg viewBox="0 0 24 24"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z" fill="'+(on?'#ffd36b':'none')+'" stroke="#ffd36b" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+  function roundEnd(){
+    const pct=S.asked?S.right/S.asked:0,st=pct===1?3:pct>=.8?2:pct>=.5?1:0;
+    $('rScore').innerHTML=S.right+'<small> / '+S.asked+'</small>';
+    $('rStars').innerHTML=[0,1,2].map(k=>star(k<st)).join('');
+    $('rTitle').textContent={full:'起飛完成！',belt:'穿過一段隕石帶',final:S.pending.size?'怪物還沒被打倒':'怪物被打跑了！',book:'錯題本複習完成'}[S.phase];
+    const rocks=S.phase==='book'?Object.keys(D.book):[...S.pending];
+    $('rRocks').innerHTML=rocks.map(w=>'<div class="rock">'+esc(w)+'<small>'+esc((meaning(w)||'').slice(0,14))+'</small>'+dots(S.phase==='book'?D.book[w]:S.streak[w])+'</div>').join('');
+    let msg,btn,go;
+    if(S.phase==='book'){msg=rocks.length?'錯題本還有 '+rocks.length+' 個字。':'錯題本清空了！';btn=rocks.length?'再複習一次':'回首頁';go=rocks.length?()=>startRound('book'):goHome;}
+    else if(S.pending.size){msg=S.phase==='belt'?'還有 '+S.pending.size+' 顆隕石。':S.phase==='final'?'答錯的 '+S.pending.size+' 個字變成隕石，先把它們打碎，再回來挑戰怪物。':'答錯的字變成了 '+S.pending.size+' 顆隕石，進隕石帶把它們打碎。';btn=S.phase==='belt'?'繼續打隕石':'進入隕石帶';go=()=>startRound('belt');}
+    else if(S.phase==='full'||S.phase==='final'){msg=S.phase==='full'?'一次就全對，太厲害了！直接登陸。':'每個字都答對了！';btn='登陸新星球';go=landing;}
+    else{msg='隕石都打碎了。最後一關：總複習，打倒擋在新星球前的怪物！';btn='挑戰怪物';go=()=>startRound('final');}
+    $('rMsg').textContent=msg;$('rNext').textContent=btn;$('rNext').onclick=go;
+    view('vResult');
+  }
+  function landing(){
+    const c=D.planets.length;D.planets.push({n:NAME,c,d:Date.now()});save();header();
+    $('newp').style.background=COLORS[c%COLORS.length];
+    $('landTitle').textContent=NAME+' 完全通過！';$('coll').innerHTML=collHTML();
+    view('vLand');
+  }
+
+  function renderBook(){
+    const ws=Object.keys(D.book);
+    $('bRocks').innerHTML=ws.length?ws.map(w=>'<div class="rock">'+esc(w)+'<small>'+esc((meaning(w)||'').slice(0,14))+'</small>'+dots(D.book[w])+'</div>').join(''):'<p class="empty">錯題本是空的。<br>聽寫答錯的字會自動放進來。</p>';
+    $('bGo').hidden=!ws.length;
+  }
+  $('bGo').onclick=()=>{SET=Object.keys(D.book);NAME='錯題本';startRound('book');};
+
+  $('bookOn').onchange=()=>{D.settings.bookOn=$('bookOn').checked;save();header();};
+  $('rate').onchange=()=>{D.settings.rate=parseFloat($('rate').value);save();};
+  $('accent').onchange=()=>{D.settings.accent=$('accent').value;save();pickVoice();};
+  $('tryVoice').onclick=()=>speak('banana, water, tomato');
+  $('wipe').onclick=()=>{const b=$('wipe');
+    if(!b.dataset.sure){b.dataset.sure=1;b.textContent='確定要清除？再按一次';return;}
+    D=fresh();save();header();delete b.dataset.sure;b.textContent='清除所有紀錄';$('wipeMsg').textContent='已清除清單、錯題本和星球。';$('wipeMsg').hidden=false;};
+
+  goHome();header();
+
+  const cv=$('sky'),ctx=cv.getContext('2d');let stars=[];
+  const still=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function size(){cv.width=innerWidth*devicePixelRatio;cv.height=innerHeight*devicePixelRatio;
+    stars=Array.from({length:110},()=>({x:Math.random()*cv.width,y:Math.random()*cv.height,r:(Math.random()*1.4+.4)*devicePixelRatio,p:Math.random()*6.28}));}
+  function draw(t){ctx.clearRect(0,0,cv.width,cv.height);
+    for(const s of stars){ctx.globalAlpha=.45+.55*Math.abs(Math.sin(s.p+t/900));ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,6.28);ctx.fill();}
+    if(!still)requestAnimationFrame(draw);}
+  addEventListener('resize',size);size();requestAnimationFrame(draw);
+  window.__wr={parse,lookup,S,same,tsvToText};
+})();
+</script>
