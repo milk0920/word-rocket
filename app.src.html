@@ -427,7 +427,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
     const tick=()=>{$('ocrMsg').textContent=stage+'…（'+Math.round((Date.now()-t0)/1000)+' 秒）';};
     clearInterval(ocrTimer);ocrTimer=setInterval(tick,500);tick();
     try{
-      const png=await prepImage(f);
+      const png=await prepImage(f);stage='下載辨識程式';
       if(job!==ocrJob)return;
       if(!ocrWorker)ocrWorker=new Worker('ocr/ocr-worker.js');
       const tsv=await new Promise((res,rej)=>{
@@ -435,7 +435,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
           if(m.stage==='load'){stage=ocrWorker.__loaded?'正在辨識照片':'下載辨識程式';$('ocrSub').hidden=!!ocrWorker.__loaded;}
           else if(m.stage==='read'){ocrWorker.__loaded=true;stage='正在辨識照片';$('ocrSub').hidden=true;}
           else if(m.error)rej(new Error(m.error));else res(m.tsv);};
-        ocrWorker.onerror=e=>rej(new Error(e.message||'worker'));
+        ocrWorker.onerror=e=>rej(new Error('worker: '+(e.message||'load failed')));
         ocrWorker.postMessage({base:new URL('ocr/',location.href).href,image:png},[png]);
       });
       if(job!==ocrJob)return;
@@ -445,7 +445,8 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
       const d=new Date();ready(list,(d.getMonth()+1)+'/'+d.getDate()+' 的單字',true);
     }catch(err){
       if(job!==ocrJob)return;clearInterval(ocrTimer);
-      $('ocrMsg').textContent='辨識沒有成功。請檢查網路後再試一次，或改用「貼上單字」、「自己打字輸入」。';$('ocrSub').hidden=true;
+      $('ocrMsg').textContent='辨識沒有成功。請檢查網路後再試一次，或改用「貼上單字」、「自己打字輸入」。';
+      $('ocrSub').textContent='技術資訊（給大人看）：'+stage+'／'+String(err&&err.message||err).slice(0,200);$('ocrSub').hidden=false;
       if(ocrWorker){ocrWorker.terminate();ocrWorker=null;}
     }finally{setTimeout(()=>URL.revokeObjectURL(url),60000);}
   };
