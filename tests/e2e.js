@@ -139,6 +139,22 @@ async function uploadPhoto(page, file) {
       await ctx.close();
     });
 
+    await check('WR-3 hints: few words, missing voice, in-app browser', async () => {
+      const page = await open(browser, 'Galaxy Tab S4');
+      const got = await uploadPhoto(page, 'one-word.png');
+      assert(same(got, ['telescope']), JSON.stringify(got));
+      assert(await page.$eval('#fewNote', e => !e.hidden), 'few-words hint');
+      await page.click('#setBtn');
+      await page.selectOption('#accent', 'en-GB');
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: path.join(SHOTS, 'voice-hint.png') });
+      const hasGb = await page.evaluate(() => speechSynthesis.getVoices().some(v => /en[-_]GB/i.test(v.lang)));
+      assert(await page.$eval('#voiceMsg', e => !e.hidden) === !hasGb, 'voice hint matches the installed voices');
+      assert(await page.$eval('#inAppNote', e => e.hidden), 'no in-app banner in Chrome');
+      const inApp = await open(browser, 'Galaxy Tab S4', { userAgent: devices['Galaxy Tab S4'].userAgent.replace(')', '; wv)') });
+      assert(await inApp.$eval('#inAppNote', e => !e.hidden), 'in-app banner in a WebView');
+    });
+
     for (const [device, shot] of [['Galaxy S5', 's5-wrong.png'], ['Galaxy Tab S4 landscape', 'tab-landscape.png']]) {
       await check(`lanes 2-3 layout on ${device}`, async () => {
         const page = await open(browser, device);
