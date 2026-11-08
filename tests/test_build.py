@@ -26,6 +26,14 @@ class BuildTest(unittest.TestCase):
                      'PP-OCRv6_det_small.onnx', 'PP-OCRv6_rec_small.onnx'):
             self.assertGreater(os.path.getsize(path('docs', 'ocr', name)), 1000, name)
 
+    def test_manifest_points_at_real_icons(self):
+        with open(path('docs', 'manifest.webmanifest'), encoding='utf-8') as f:
+            manifest = json.load(f)
+        self.assertEqual(manifest['name'], '單字火箭')
+        self.assertEqual(manifest['display'], 'standalone')
+        for icon in manifest['icons']:
+            self.assertTrue(os.path.exists(path('docs', icon['src'])), icon['src'])
+
     def test_recognizer_keys_match_the_model_output(self):
         with open(path('docs', 'ocr', 'keys.json'), encoding='utf-8') as f:
             keys = json.load(f)

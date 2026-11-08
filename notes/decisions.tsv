@@ -18,3 +18,4 @@ ts	phase	decision	why	evidence	result
 2026-11-08T06:27:08Z	start	started WR-5, the hero adventure theme	the child asked for a second adventure; Chief approved the art and shared records	prototype https://claude.ai/artifact/9u1FDN6DvK3aax3ye4YjoL	open
 2026-11-08T06:27:09Z	wr-5	put all theme art and words in one THEMES table and kept one practice flow	every feature must stay in both adventures, so the flow cannot fork	app.src.html THEMES, applyTheme	e2e 11/11
 2026-11-08T06:27:09Z	wr-5	kept one shared record; a finished list shows as a planet or a medal	Chief chose shared records	D.planets rendered by T.prize	hero lane checks the count after switching
+2026-11-08T06:31:12Z	wr-2	page network-first, recognition files cache-first and only after the first photo	a new deploy reaches the child as soon as the tablet is online, and the 30 MB download is not forced on first open	docs/sw.js	e2e offline lane passes, including offline photo recognition

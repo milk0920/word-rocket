@@ -45,6 +45,7 @@ async function answer(page, right) {
 async function uploadPhoto(page, file) {
   await page.click('#homeBtn');
   await page.evaluate(() => { document.querySelector('#s3').hidden = true; });
+  await page.evaluate(() => { document.querySelector('#photo').value = ''; });
   await page.setInputFiles('#photo', path.join(__dirname, 'fixtures', file));
   await page.waitForFunction(() => !document.querySelector('#s3').hidden ||
     /沒有/.test(document.querySelector('#ocrMsg').textContent), null, { timeout: 120000 });
@@ -112,6 +113,30 @@ async function uploadPhoto(page, file) {
       assert(await page.$eval('#launch', e => e.textContent) === '發射！', 'space label after switching');
       assert(await page.$eval('#planetN', e => e.textContent) === '1', 'medal counted as a planet in the shared record');
       assert(page.errors.length === 0, page.errors.join('; '));
+    });
+
+    await check('WR-2 offline: page, practice and cached photo recognition', async () => {
+      const ctx = await browser.newContext({ ...devices['Galaxy Tab S4'] });
+      const page = await ctx.newPage();
+      page.errors = []; page.on('pageerror', e => page.errors.push(e.message));
+      await page.goto(URL);
+      await page.waitForFunction(() => navigator.serviceWorker.controller || navigator.serviceWorker.ready.then(() => true), null, { timeout: 20000 });
+      await page.reload();
+      await page.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 20000 });
+      if (await page.$eval('#vPick', e => !e.hidden)) await page.click('#pickSpace');
+      const first = await uploadPhoto(page, 'mild.jpg');
+      assert(first.length === 16, 'online recognition ' + first.length);
+      await ctx.setOffline(true);
+      await page.reload();
+      assert(await page.$eval('#vHome', e => !e.hidden), 'home shows offline');
+      const second = await uploadPhoto(page, 'clean.png');
+      await page.screenshot({ path: path.join(SHOTS, 'offline-photo.png') });
+      assert(second.length === 16, 'offline recognition ' + second.length);
+      await page.click('#launch');
+      await page.waitForSelector('#vQuiz:not([hidden])');
+      await ctx.setOffline(false);
+      assert(page.errors.length === 0, page.errors.join('; '));
+      await ctx.close();
     });
 
     for (const [device, shot] of [['Galaxy S5', 's5-wrong.png'], ['Galaxy Tab S4 landscape', 'tab-landscape.png']]) {
