@@ -142,6 +142,28 @@ async function uploadPhoto(page, file) {
       assert(page.errors.length === 0, page.errors.join('; '));
     });
 
+    await check('a reload mid-mission resumes where it left off', async () => {
+      const page = await open(browser, 'Pixel 7');
+      assert(await page.evaluate(() => getComputedStyle(document.documentElement).overscrollBehaviorY) === 'contain', 'pull-to-refresh off');
+      await page.click('#toPaste');
+      await page.fill('#paste', 'apple\ntiger\npencil');
+      await page.click('#clean');
+      await page.click('#launch');
+      await page.waitForSelector('#vQuiz:not([hidden])');
+      await answer(page, true);
+      await answer(page, false);
+      const before = await page.evaluate(() => ({ i: window.__wr.S.i, q: window.__wr.S.queue.join(), pending: [...window.__wr.S.pending] }));
+      await page.reload();
+      assert(await page.$eval('#resumeBtn', e => !e.hidden && e.textContent.includes('3 / 3')), 'resume button shows question 3 of 3');
+      await page.click('#resumeBtn');
+      await page.waitForSelector('#vQuiz:not([hidden])');
+      const after = await page.evaluate(() => ({ i: window.__wr.S.i, q: window.__wr.S.queue.join(), pending: [...window.__wr.S.pending] }));
+      assert(same(before, after), JSON.stringify([before, after]));
+      await page.click('#quit');
+      await page.reload();
+      assert(await page.$eval('#resumeBtn', e => e.hidden), 'no resume after quitting');
+    });
+
     await check('WR-2 offline: page, practice and cached photo recognition', async () => {
       const ctx = await browser.newContext({ ...devices['Galaxy Tab S4'] });
       const page = await ctx.newPage();

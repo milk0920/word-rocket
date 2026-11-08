@@ -19,6 +19,8 @@
 }
 [hidden]{display:none!important}
 html,body{height:100%}
+/* No pull-to-refresh: an accidental swipe down used to reload the page and lose the mission. */
+html,body{overscroll-behavior-y:contain}
 body{margin:0;background:var(--space);color:var(--ink);font-family:var(--body);font-size:16px;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 #sky{position:fixed;inset:0;width:100%;height:100%;z-index:0;
@@ -200,6 +202,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
   </header>
 
   <section id="vPick" hidden>
+    <button class="go" id="resumeBtn" hidden style="width:100%;margin-bottom:14px;font-size:20px"></button>
     <h2 style="margin:4px 0 12px">今天要用哪一種冒險練單字？</h2>
     <div class="pick">
       <button id="pickSpace" style="background:linear-gradient(#1b1f5e,#0d1238);color:#f3f1ff"><div class="art" id="pickSpaceArt"></div><div class="cap"><span class="last" hidden style="display:inline-block;background:#ffd23a;color:#2a1600;border-radius:4px;padding:1px 6px;font-size:12px;font-weight:700;margin-bottom:4px">上次玩的</span><b>遨遊星際</b><span>開火箭打隕石、登陸新星球</span></div></button>
@@ -548,6 +551,8 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
   $('pickHeroArt').innerHTML='<div style="display:flex;align-items:flex-end;gap:2px"><div style="width:74px">'+HERO+'</div><div style="width:66px">'+GOB+'</div></div>';
   function showPick(){
     if(synth)synth.cancel();
+    const r=D.run;$('resumeBtn').hidden=!r;
+    if(r)$('resumeBtn').textContent='繼續上次的任務：'+r.name+'（'+Math.min(r.i+1,r.queue.length)+' / '+r.queue.length+'）';
     ['Space','Hero','Block'].forEach(k=>{const b=$('pick'+k),on=D.settings.theme===k.toLowerCase();b.style.outline=on?'4px solid #ffd23a':'';b.querySelector('.last').hidden=!on;});
     view('vPick');
   }
@@ -674,6 +679,14 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
   $('lGo').onclick=()=>{view('vHome');$('launch').click();};
 
   const S={phase:'full',pending:new Set(),streak:{},queue:[],i:0,right:0,asked:0,hp:0,busy:false};
+  // The mission is saved before every question, so a reload resumes it instead of starting over.
+  function saveRun(){D.run={set:SET,name:NAME,phase:S.phase,queue:S.queue,i:S.i,right:S.right,asked:S.asked,hp:S.hp,pending:[...S.pending],streak:S.streak};save();}
+  function endRun(){delete D.run;save();}
+  $('resumeBtn').onclick=()=>{
+    const r=D.run;if(!r)return;
+    SET=r.set;NAME=r.name;Object.assign(S,{phase:r.phase,queue:r.queue,i:r.i,right:r.right,asked:r.asked,hp:r.hp,pending:new Set(r.pending),streak:r.streak,busy:false});
+    view('vQuiz');setScene();hpBar();if(S.i<S.queue.length)ask();else roundEnd();
+  };
   function startMission(){S.pending=new Set();S.streak={};startRound('full');}
   function startRound(phase){
     S.phase=phase;
@@ -697,7 +710,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
   const streakOf=w=>S.phase==='book'?(D.book[w]||0):(S.streak[w]||0);
   const dots=n=>'<span class="dots"><i class="'+(n>0?'f':'')+'"></i><i class="'+(n>1?'f':'')+'"></i></span>';
   function ask(){
-    route();S.busy=false;const w=S.queue[S.i];
+    route();S.busy=false;saveRun();const w=S.queue[S.i];
     $('qPhase').textContent=S.phase==='book'?'錯題本複習':T.PH[S.phase];$('qProg').textContent=(S.i+1)+' / '+S.queue.length;
     $('qHint').hidden=true;$('ans').value='';$('fb').hidden=true;$('next').hidden=true;$('qForm').hidden=false;
     const rocky=S.phase==='belt'||S.phase==='book';$('qStreak').hidden=!rocky;
@@ -713,7 +726,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
   $('slow').onclick=()=>speak(S.queue[S.i],0.5);
   $('hint').onclick=()=>{const w=S.queue[S.i];$('qHint').textContent=w.split(' ').map(p=>p.split('').map((c,k)=>k===0||!/[a-z]/i.test(c)?c:'_').join(' ')).join('   ');$('qHint').hidden=false;};
   $('qForm').onsubmit=e=>{e.preventDefault();if(!S.busy)check($('ans').value);};
-  $('quit').onclick=goHome;
+  $('quit').onclick=()=>{endRun();goHome();};
   function anim(el,cls,ms){el.classList.remove(cls);void el.offsetWidth;el.classList.add(cls);setTimeout(()=>el.classList.remove(cls),ms);}
   function check(raw){
     const w=S.queue[S.i];if(!norm(raw))return;
@@ -756,6 +769,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
 
   const star=on=>'<svg viewBox="0 0 24 24"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z" fill="'+(on?'#ffd36b':'none')+'" stroke="#ffd36b" stroke-width="1.6" stroke-linejoin="round"/></svg>';
   function roundEnd(){
+    saveRun();
     const pct=S.asked?S.right/S.asked:0,st=pct===1?3:pct>=.8?2:pct>=.5?1:0;
     $('rScore').innerHTML=S.right+'<small> / '+S.asked+'</small>';
     $('rStars').innerHTML=[0,1,2].map(k=>star(k<st)).join('');
@@ -771,6 +785,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
     view('vResult');
   }
   function landing(){
+    endRun();
     const c=D.planets.length;D.planets.push({n:NAME,c,d:Date.now()});save();header();
     $('landArt').innerHTML=T.land(c);
     $('landTitle').textContent=NAME+' 完全通過！';$('coll').innerHTML=collHTML();
