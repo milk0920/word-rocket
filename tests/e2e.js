@@ -29,7 +29,7 @@ async function open(browser, device, extra = {}) {
   page.errors = [];
   page.on('pageerror', e => page.errors.push(e.message));
   await page.goto(URL);
-  if (await page.$eval('#vPick', e => !e.hidden)) await page.click(extra.theme === 'hero' ? '#pickHero' : '#pickSpace');
+  if (await page.$eval('#vPick', e => !e.hidden)) await page.click({ hero: '#pickHero', block: '#pickBlock' }[extra.theme] || '#pickSpace');
   return page;
 }
 async function words(page) { return page.$$eval('#wlist .item b', els => els.map(e => e.textContent)); }
@@ -112,6 +112,30 @@ async function uploadPhoto(page, file) {
       assert(await page.$eval('#vPick', e => e.hidden), 'picker shown again after a theme was chosen');
       assert(await page.$eval('#launch', e => e.textContent) === '發射！', 'space label after switching');
       assert(await page.$eval('#planetN', e => e.textContent) === '1', 'medal counted as a planet in the shared record');
+      assert(page.errors.length === 0, page.errors.join('; '));
+    });
+
+    await check('block theme: third picker card, full mission, gold block', async () => {
+      const page = await open(browser, 'Galaxy S5', { theme: 'block' });
+      assert(await page.$eval('#theme', e => e.value) === 'block', 'block theme chosen');
+      assert(await page.$eval('#sub', e => e.textContent).then(t => t.includes('方塊勇者')), 'block subtitle');
+      await page.click('#toPaste');
+      await page.fill('#paste', 'apple\ntiger');
+      await page.click('#clean');
+      await page.click('#launch');
+      await page.waitForSelector('#vQuiz:not([hidden])');
+      assert(await page.$eval('#target', e => e.innerHTML.includes('殭屍')), 'zombie on the surface');
+      let wrongs = 1;
+      for (let guard = 0; guard < 30; guard++) {
+        if (await page.$eval('#vLand', e => !e.hidden)) break;
+        if (await page.$eval('#vResult', e => !e.hidden)) { await page.click('#rNext'); continue; }
+        const phase = await page.evaluate(() => window.__wr.S.phase);
+        if (phase === 'belt') assert(await page.$eval('#target', e => e.innerHTML.includes('鐵甲殭屍')), 'armored zombie in the mine');
+        await answer(page, !(phase === 'full' && wrongs-- > 0));
+      }
+      assert(await page.$eval('#landArt', e => e.innerHTML.includes('金方塊')), 'gold block on the win screen');
+      assert(await noHorizontalScroll(page), 'S5 width');
+      await page.screenshot({ path: path.join(SHOTS, 'block-win.png') });
       assert(page.errors.length === 0, page.errors.join('; '));
     });
 
