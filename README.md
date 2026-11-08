@@ -34,6 +34,14 @@
    node tests/e2e.js
    ```
 
+4. 量效能（不在 CI 裡跑）：
+
+   ```bash
+   node tests/perf.js 5
+   ```
+
+   它模擬 Moto G4、CPU 降速 4 倍、Fast 3G 網路，量首頁可以操作的時間和照片辨識時間，超過上限就失敗。
+
 GitHub Pages 發布 `main` 分支的 `docs/` 資料夾。
 
 ## 修改字典
