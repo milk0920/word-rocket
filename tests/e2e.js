@@ -23,11 +23,13 @@ const OCR_EXPECTED = ['breakfast', 'brush', 'teeth', 'wash', 'face', 'school bus
   'take a shower', 'go to bed', "o'clock", 'afternoon', 'evening', 'usually', 'yo-yo'];
 
 async function open(browser, device, extra = {}) {
-  const ctx = await browser.newContext({ ...devices[device], ...extra });
+  const { theme, ...opts } = extra;
+  const ctx = await browser.newContext({ ...devices[device], ...opts });
   const page = await ctx.newPage();
   page.errors = [];
   page.on('pageerror', e => page.errors.push(e.message));
   await page.goto(URL);
+  if (await page.$eval('#vPick', e => !e.hidden)) await page.click(extra.theme === 'hero' ? '#pickHero' : '#pickSpace');
   return page;
 }
 async function words(page) { return page.$$eval('#wlist .item b', els => els.map(e => e.textContent)); }
@@ -81,6 +83,34 @@ async function uploadPhoto(page, file) {
       }
       assert(await page.$eval('#vLand', e => !e.hidden), 'never reached the landing screen');
       await page.screenshot({ path: path.join(SHOTS, 'full-mission.png') });
+      assert(page.errors.length === 0, page.errors.join('; '));
+    });
+
+    await check('hero theme: picker, full mission, shared records', async () => {
+      const page = await open(browser, 'Pixel 7', { theme: 'hero' });
+      assert(await page.$eval('#launch', e => e.textContent) === '出發！', 'hero launch label');
+      await page.click('#toPaste');
+      await page.fill('#paste', 'apple\nice cream');
+      await page.click('#clean');
+      await page.click('#launch');
+      await page.waitForSelector('#vQuiz:not([hidden])');
+      assert(await page.$eval('#bubble', e => !e.hidden), 'goblin taunt bubble shown');
+      let wrongs = 1;
+      for (let guard = 0; guard < 30; guard++) {
+        if (await page.$eval('#vLand', e => !e.hidden)) break;
+        if (await page.$eval('#vResult', e => !e.hidden)) { await page.click('#rNext'); continue; }
+        const phase = await page.evaluate(() => window.__wr.S.phase);
+        await answer(page, !(phase === 'full' && wrongs-- > 0));
+      }
+      assert(await page.$eval('#vLand', e => !e.hidden), 'never reached the chest');
+      assert(await page.$eval('#landArt', e => e.innerHTML.includes('寶箱')), 'chest art');
+      await page.screenshot({ path: path.join(SHOTS, 'hero-win.png') });
+      await page.click('#setBtn');
+      await page.selectOption('#theme', 'space');
+      await page.reload();
+      assert(await page.$eval('#vPick', e => e.hidden), 'picker shown again after a theme was chosen');
+      assert(await page.$eval('#launch', e => e.textContent) === '發射！', 'space label after switching');
+      assert(await page.$eval('#planetN', e => e.textContent) === '1', 'medal counted as a planet in the shared record');
       assert(page.errors.length === 0, page.errors.join('; '));
     });
 
@@ -153,7 +183,7 @@ async function uploadPhoto(page, file) {
 
     await check('lane 10 mistake book clears after two right answers', async () => {
       const page = await open(browser, 'Pixel 7');
-      await page.evaluate(() => localStorage.setItem('wordRocket.v1', JSON.stringify({ lists: {}, book: { apple: 0 }, planets: [], settings: { bookOn: true, rate: 0.9, accent: 'en-US' } })));
+      await page.evaluate(() => localStorage.setItem('wordRocket.v1', JSON.stringify({ lists: {}, book: { apple: 0 }, planets: [], settings: { bookOn: true, rate: 0.9, accent: 'en-US', theme: 'space' } })));
       await page.reload();
       await page.click('#bookBtn');
       await page.click('#bGo');
