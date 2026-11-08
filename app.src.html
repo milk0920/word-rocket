@@ -2,6 +2,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="claude:viewport-fit-sides" content="cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0d1238">
+<link rel="icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Noto+Sans+TC:wght@500;700;900&display=swap">
 <style>
@@ -193,6 +196,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
       <div class="pad"></div>
     </section>
 
+    <p class="msg" id="inAppNote" hidden style="background:#0006;border:1px solid var(--line);border-radius:12px;padding:10px">這個頁面是在其他 App 裡面打開的，照片辨識和智慧鏡頭按鈕可能不能用。請按右上角的選單，選「在 Chrome 中開啟」。</p>
     <section class="panel" id="s1">
       <h2 data-t="missionTitle">今天的任務：裝燃料</h2>
       <p class="muted" data-t="missionText">按綠色按鈕打開 Google 智慧鏡頭，拍單字表、選「文字」、按「複製」，再回到這裡貼上。每個單字就是一格燃料。</p>
@@ -234,6 +238,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
       <h2 id="readyTitle">確認單字</h2>
       <p class="muted">多的字按「拿掉」。查不到意思的字可以用 Google 翻譯查。</p>
       <p class="msg" id="photoNote" hidden>照片辨識可能會認錯字。紅色的字是字典查不到的，請對照課本檢查，認錯的就拿掉，再用下面的框框打正確的字。</p>
+      <p class="msg" id="fewNote" hidden>只認出很少的字。照片太模糊、太暗或字太潦草時，可以改用 Google 智慧鏡頭，或在下面的框框自己打字。</p>
       <div class="list" id="wlist"></div>
       <form id="addForm" class="row" style="flex-wrap:nowrap">
         <input class="field" id="addWord" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="打一個單字或片語" aria-label="打一個單字或片語" style="flex:1 1 auto">
@@ -332,6 +337,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
     <label class="switch"><span><b>發音口音</b><br><span class="muted">美式或英式，跟學校老師的念法一樣就好</span></span>
       <select id="accent" class="field" style="width:auto"><option value="en-US">美式</option><option value="en-GB">英式</option></select></label>
     <button class="ghost" id="tryVoice">試聽：banana, water, tomato</button>
+    <p class="msg" id="voiceMsg" hidden></p>
     <label class="switch"><span><b>冒險主題</b><br><span class="muted">清單、錯題本和收藏兩種冒險共用</span></span>
       <select id="theme" class="field" style="width:auto"><option value="space">遨遊星際</option><option value="hero">英雄對決</option></select></label>
     <button class="danger" id="wipe">清除所有紀錄</button>
@@ -500,7 +506,14 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
   $('theme').onchange=()=>applyTheme($('theme').value);
   function goHome(){if(synth)synth.cancel();stage.classList.remove('ready','launched','shake');fuel(0);homeStep('s1');renderSaved();view('vHome');}
   $('homeBtn').onclick=goHome;$('setHome').onclick=$('bHome').onclick=$('landHome').onclick=goHome;
-  $('setBtn').onclick=()=>{$('theme').value=D.settings.theme||'space';$('bookOn').checked=D.settings.bookOn;$('rate').value=String(D.settings.rate);$('accent').value=D.settings.accent;$('wipeMsg').hidden=true;view('vSet');};
+  function voiceCheck(){
+    if(!synth){$('voiceMsg').textContent='這台裝置不能發音。';$('voiceMsg').hidden=false;return;}
+    const gb=D.settings.accent==='en-GB',re=gb?/en[-_]GB/i:/en[-_]US/i,has=synth.getVoices().some(v=>re.test(v.lang));
+    $('voiceMsg').textContent='這台裝置還沒有'+(gb?'英式':'美式')+'英文語音。到「設定 → 系統 → 語言 → 文字轉語音輸出」，按 Google 語音服務旁邊的齒輪，安裝 English ('+(gb?'United Kingdom':'United States')+')。';
+    $('voiceMsg').hidden=has;
+  }
+  if(synth)synth.addEventListener&&synth.addEventListener('voiceschanged',()=>{if(!$('vSet').hidden)voiceCheck();});
+  $('setBtn').onclick=()=>{setTimeout(voiceCheck,300);$('theme').value=D.settings.theme||'space';$('bookOn').checked=D.settings.bookOn;$('rate').value=String(D.settings.rate);$('accent').value=D.settings.accent;$('wipeMsg').hidden=true;view('vSet');};
   $('bookBtn').onclick=()=>{renderBook();view('vBook');};
   $('toHelp').onclick=()=>view('vHelp');$('helpOk').onclick=goHome;
   $('toPaste').onclick=()=>{homeStep('s2');$('pasteMsg').hidden=true;};
@@ -588,7 +601,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
     fuel(SET.length);$('readyTitle').textContent=SET.length?'確認單字（'+SET.length+' 個）':'打字輸入單字';$('launch').disabled=!SET.length;$('toLearn').disabled=!SET.length;
     if(!SET.length)box.innerHTML='<p class="empty">在下面的框框打一個單字或片語，按「加入」。</p>';
   }
-  function ready(list,name,fromPhoto){$('photoNote').hidden=!fromPhoto;SET=list;NAME=name;$('listName').value=name;renderList();stage.classList.add('ready');homeStep('s3');view('vHome');}
+  function ready(list,name,fromPhoto){$('photoNote').hidden=!fromPhoto;$('fewNote').hidden=!(fromPhoto&&list.length<3);SET=list;NAME=name;$('listName').value=name;renderList();stage.classList.add('ready');homeStep('s3');view('vHome');}
   $('s3Back').onclick=()=>{$('paste').value=SET.join('\n');stage.classList.remove('ready');homeStep('s2');};
   $('launch').title='';
   function keepList(){NAME=$('listName').value.trim()||NAME||'我的單字';D.lists[NAME]={w:SET.slice(),t:Date.now()};save();}
@@ -720,12 +733,14 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
 
   $('bookOn').onchange=()=>{D.settings.bookOn=$('bookOn').checked;save();header();};
   $('rate').onchange=()=>{D.settings.rate=parseFloat($('rate').value);save();};
-  $('accent').onchange=()=>{D.settings.accent=$('accent').value;save();pickVoice();};
+  $('accent').onchange=()=>{D.settings.accent=$('accent').value;save();pickVoice();voiceCheck();};
   $('tryVoice').onclick=()=>speak('banana, water, tomato');
   $('wipe').onclick=()=>{const b=$('wipe');
     if(!b.dataset.sure){b.dataset.sure=1;b.textContent='確定要清除？再按一次';return;}
     const th=D.settings.theme;D=fresh();D.settings.theme=th;save();header();delete b.dataset.sure;b.textContent='清除所有紀錄';$('wipeMsg').textContent=T.wiped;$('wipeMsg').hidden=false;};
 
+  // Android in-app browsers (WebView) block some features; Chrome and Chrome Custom Tabs do not say "wv".
+  $('inAppNote').hidden=!/; wv\)|FBAN|FBAV|Instagram|Line\//i.test(navigator.userAgent);
   const firstRun=!THEMES[D.settings.theme];
   applyTheme(firstRun?'space':D.settings.theme);
   if(firstRun)view('vPick');else goHome();
@@ -739,6 +754,8 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
     for(const s of stars){ctx.globalAlpha=.45+.55*Math.abs(Math.sin(s.p+t/900));ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,6.28);ctx.fill();}
     if(!still)requestAnimationFrame(draw);}
   addEventListener('resize',size);size();requestAnimationFrame(draw);
+  // Offline support and "add to home screen". Not available inside the Claude preview, which is fine.
+  if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='127.0.0.1'))navigator.serviceWorker.register('sw.js').catch(()=>{});
   window.__wr={parse,lookup,S,same};
 })();
 </script>
