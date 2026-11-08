@@ -28,7 +28,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px}
 h1{font-family:var(--display);font-weight:800;font-size:28px;line-height:1.1;margin:0}
 h1 small{display:block;font-family:var(--body);font-weight:500;font-size:13px;color:var(--muted);margin-top:3px}
 .hbtns{display:flex;gap:6px;align-items:center}
-.icon{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:6px 9px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:5px}
+.icon{white-space:nowrap;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:6px 9px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:5px}
 .icon svg{width:18px;height:18px}
 .mini{width:16px;height:16px;border-radius:50%;display:inline-block;box-shadow:inset -3px -2px 0 rgba(0,0,0,.25);flex:none}
 .stage{position:relative;height:280px;overflow:hidden}
@@ -194,6 +194,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
     <div class="hbtns">
       <button class="icon" id="bookBtn" aria-label="錯題本"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5"/></svg><span id="bookN">0</span></button>
       <button class="icon" id="homeBtn" aria-label="回首頁"><span class="mini" id="homeMini" style="background:#7cc8ff"></span><span id="planetN">0</span></button>
+      <button class="icon" id="pickBtn" aria-label="換冒險">換冒險</button>
       <button class="icon" id="setBtn" aria-label="設定"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg></button>
     </div>
   </header>
@@ -201,11 +202,11 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
   <section id="vPick" hidden>
     <h2 style="margin:4px 0 12px">今天要用哪一種冒險練單字？</h2>
     <div class="pick">
-      <button id="pickSpace" style="background:linear-gradient(#1b1f5e,#0d1238);color:#f3f1ff"><div class="art" id="pickSpaceArt"></div><div class="cap"><b>遨遊星際</b><span>開火箭打隕石、登陸新星球</span></div></button>
-      <button id="pickBlock" style="background:linear-gradient(#5f9fd6 0 50%,#5fae4a 50% 60%,#8a5a2e 60%);color:#fff;border-radius:6px"><div class="art" id="pickBlockArt"></div><div class="cap"><b>方塊打殭屍</b><span>方塊勇者打殭屍、鐵甲殭屍和殭屍王</span></div></button>
-      <button id="pickHero" style="background:linear-gradient(#3d7a4a,#1f3d27);color:#f5f2e8"><div class="art" id="pickHeroArt"></div><div class="cap"><b>英雄對決</b><span>勇者打倒哥布林、魔像和暗影魔王</span></div></button>
+      <button id="pickSpace" style="background:linear-gradient(#1b1f5e,#0d1238);color:#f3f1ff"><div class="art" id="pickSpaceArt"></div><div class="cap"><span class="last" hidden style="display:inline-block;background:#ffd23a;color:#2a1600;border-radius:4px;padding:1px 6px;font-size:12px;font-weight:700;margin-bottom:4px">上次玩的</span><b>遨遊星際</b><span>開火箭打隕石、登陸新星球</span></div></button>
+      <button id="pickBlock" style="background:linear-gradient(#5f9fd6 0 50%,#5fae4a 50% 60%,#8a5a2e 60%);color:#fff;border-radius:6px"><div class="art" id="pickBlockArt"></div><div class="cap"><span class="last" hidden style="display:inline-block;background:#ffd23a;color:#2a1600;border-radius:4px;padding:1px 6px;font-size:12px;font-weight:700;margin-bottom:4px">上次玩的</span><b>方塊打殭屍</b><span>方塊勇者打殭屍、鐵甲殭屍和殭屍王</span></div></button>
+      <button id="pickHero" style="background:linear-gradient(#3d7a4a,#1f3d27);color:#f5f2e8"><div class="art" id="pickHeroArt"></div><div class="cap"><span class="last" hidden style="display:inline-block;background:#ffd23a;color:#2a1600;border-radius:4px;padding:1px 6px;font-size:12px;font-weight:700;margin-bottom:4px">上次玩的</span><b>英雄對決</b><span>勇者打倒哥布林、魔像和暗影魔王</span></div></button>
     </div>
-    <p class="muted" style="margin-top:12px">三種冒險的練習方式和紀錄都一樣，之後也可以在設定裡換。</p>
+    <p class="muted" style="margin-top:12px">三種冒險的練習方式和紀錄都一樣。玩到一半想換，按右上角的「換冒險」。</p>
   </section>
 
   <div id="vHome">
@@ -545,6 +546,12 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
   }
   $('pickSpaceArt').innerHTML='<div style="width:54px">'+ROCKET+'</div>';
   $('pickHeroArt').innerHTML='<div style="display:flex;align-items:flex-end;gap:2px"><div style="width:74px">'+HERO+'</div><div style="width:66px">'+GOB+'</div></div>';
+  function showPick(){
+    if(synth)synth.cancel();
+    ['Space','Hero','Block'].forEach(k=>{const b=$('pick'+k),on=D.settings.theme===k.toLowerCase();b.style.outline=on?'4px solid #ffd23a':'';b.querySelector('.last').hidden=!on;});
+    view('vPick');
+  }
+  $('pickBtn').onclick=showPick;
   $('pickSpace').onclick=()=>{applyTheme('space');goHome();};
   $('pickHero').onclick=()=>{applyTheme('hero');goHome();};
   $('pickBlockArt').innerHTML='<div style="display:flex;align-items:flex-end;gap:2px;height:120px"><div style="height:110px">'+BHERO+'</div><div style="height:100px">'+BZOMBIE+'</div></div>';
@@ -787,9 +794,9 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
 
   // Android in-app browsers (WebView) block some features; Chrome and Chrome Custom Tabs do not say "wv".
   $('inAppNote').hidden=!/; wv\)|FBAN|FBAV|Instagram|Line\//i.test(navigator.userAgent);
-  const firstRun=!THEMES[D.settings.theme];
-  applyTheme(firstRun?'space':D.settings.theme);
-  if(firstRun)view('vPick');else goHome();
+  // The child picks an adventure every time the app opens; the last one is marked.
+  applyTheme(THEMES[D.settings.theme]?D.settings.theme:'space');
+  showPick();
   header();
 
   const cv=$('sky'),ctx=cv.getContext('2d');let stars=[];
