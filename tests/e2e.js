@@ -110,7 +110,9 @@ async function uploadPhoto(page, file) {
       await page.click('#setBtn');
       await page.selectOption('#theme', 'space');
       await page.reload();
-      assert(await page.$eval('#vPick', e => e.hidden), 'picker shown again after a theme was chosen');
+      assert(await page.$eval('#vPick', e => !e.hidden), 'picker shown on every open');
+      assert(await page.$eval('#pickSpace .last', e => !e.hidden), 'last-played badge on the space card');
+      await page.click('#pickSpace');
       assert(await page.$eval('#launch', e => e.textContent) === '發射！', 'space label after switching');
       assert(await page.$eval('#planetN', e => e.textContent) === '1', 'medal counted as a planet in the shared record');
       assert(page.errors.length === 0, page.errors.join('; '));
@@ -153,6 +155,8 @@ async function uploadPhoto(page, file) {
       assert(first.length === 16, 'online recognition ' + first.length);
       await ctx.setOffline(true);
       await page.reload();
+      assert(await page.$eval('#vPick', e => !e.hidden), 'picker shows offline');
+      await page.click('#pickSpace');
       assert(await page.$eval('#vHome', e => !e.hidden), 'home shows offline');
       const second = await uploadPhoto(page, 'clean.png');
       await page.screenshot({ path: path.join(SHOTS, 'offline-photo.png') });
