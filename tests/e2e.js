@@ -160,8 +160,14 @@ async function uploadPhoto(page, file) {
       const after = await page.evaluate(() => ({ i: window.__wr.S.i, q: window.__wr.S.queue.join(), pending: [...window.__wr.S.pending] }));
       assert(same(before, after), JSON.stringify([before, after]));
       await page.click('#quit');
+      assert(await page.$eval('#resumeHome', e => !e.hidden && e.textContent.includes('3 / 3')), 'pause keeps the mission and home offers to resume');
+      await page.click('#resumeHome');
+      await page.waitForSelector('#vQuiz:not([hidden])');
+      const gap = await page.evaluate(() => document.querySelector('#qForm button').getBoundingClientRect().top - document.querySelector('#quit').getBoundingClientRect().bottom);
+      assert(gap > 200, 'pause button far from the submit button: ' + gap);
+      await page.click('#quit');
       await page.reload();
-      assert(await page.$eval('#resumeBtn', e => e.hidden), 'no resume after quitting');
+      assert(await page.$eval('#resumeBtn', e => !e.hidden), 'still resumable after a reload');
     });
 
     await check('WR-2 offline: page, practice and cached photo recognition', async () => {

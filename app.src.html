@@ -223,6 +223,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
 
     <p class="msg" id="inAppNote" hidden style="background:#0006;border:1px solid var(--line);border-radius:12px;padding:10px">這個頁面是在其他 App 裡面打開的，照片辨識和智慧鏡頭按鈕可能不能用。請按右上角的選單，選「在 Chrome 中開啟」。</p>
     <section class="panel" id="s1">
+      <button class="go" id="resumeHome" hidden style="font-size:19px"></button>
       <h2 data-t="missionTitle">今天的任務：裝燃料</h2>
       <p class="muted" data-t="missionText">按綠色按鈕打開 Google 智慧鏡頭，拍單字表、選「文字」、按「複製」，再回到這裡貼上。每個單字就是一格燃料。</p>
       <a class="primary lensbtn" id="openLens" href="https://lens.google.com/" target="_blank" rel="noopener">打開 Google 智慧鏡頭拍照</a>
@@ -306,6 +307,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
   </section>
 
   <section class="panel" id="vQuiz" hidden>
+    <div style="display:flex;justify-content:flex-end"><button class="ghost" id="quit" style="font-size:13px;padding:6px 10px">⏸ 暫停，回首頁</button></div>
     <div class="route" id="qRoute"></div>
     <div class="scene" id="scene" aria-hidden="true">
       <div class="qrocket" id="qrocket"></div>
@@ -326,7 +328,6 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
     </form>
     <div class="fb" id="fb" hidden></div>
     <button class="primary" id="next" hidden>下一個</button>
-    <button class="ghost" id="quit" style="font-size:13px;padding:8px">結束這次任務，回首頁</button>
   </section>
 
   <section class="panel" id="vResult" hidden>
@@ -552,7 +553,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
   function showPick(){
     if(synth)synth.cancel();
     const r=D.run;$('resumeBtn').hidden=!r;
-    if(r)$('resumeBtn').textContent='繼續上次的任務：'+r.name+'（'+Math.min(r.i+1,r.queue.length)+' / '+r.queue.length+'）';
+    if(r)$('resumeBtn').textContent=resumeLabel();
     ['Space','Hero','Block'].forEach(k=>{const b=$('pick'+k),on=D.settings.theme===k.toLowerCase();b.style.outline=on?'4px solid #ffd23a':'';b.querySelector('.last').hidden=!on;});
     view('vPick');
   }
@@ -562,7 +563,8 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
   $('pickBlockArt').innerHTML='<div style="display:flex;align-items:flex-end;gap:2px;height:120px"><div style="height:110px">'+BHERO+'</div><div style="height:100px">'+BZOMBIE+'</div></div>';
   $('pickBlock').onclick=()=>{applyTheme('block');goHome();};
   $('theme').onchange=()=>applyTheme($('theme').value);
-  function goHome(){if(synth)synth.cancel();stage.classList.remove('ready','launched','shake');fuel(0);homeStep('s1');renderSaved();view('vHome');}
+  function resumeLabel(){const r=D.run;return r?'繼續上次的任務：'+r.name+'（'+Math.min(r.i+1,r.queue.length)+' / '+r.queue.length+'）':'';}
+  function goHome(){if(synth)synth.cancel();$('resumeHome').hidden=!D.run;$('resumeHome').textContent=resumeLabel();stage.classList.remove('ready','launched','shake');fuel(0);homeStep('s1');renderSaved();view('vHome');}
   $('homeBtn').onclick=goHome;$('setHome').onclick=$('bHome').onclick=$('landHome').onclick=goHome;
   function voiceCheck(){
     if(!synth){$('voiceMsg').textContent='這台裝置不能發音。';$('voiceMsg').hidden=false;return;}
@@ -682,6 +684,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
   // The mission is saved before every question, so a reload resumes it instead of starting over.
   function saveRun(){D.run={set:SET,name:NAME,phase:S.phase,queue:S.queue,i:S.i,right:S.right,asked:S.asked,hp:S.hp,pending:[...S.pending],streak:S.streak};save();}
   function endRun(){delete D.run;save();}
+  $('resumeHome').onclick=()=>$('resumeBtn').click();
   $('resumeBtn').onclick=()=>{
     const r=D.run;if(!r)return;
     SET=r.set;NAME=r.name;Object.assign(S,{phase:r.phase,queue:r.queue,i:r.i,right:r.right,asked:r.asked,hp:r.hp,pending:new Set(r.pending),streak:r.streak,busy:false});
@@ -726,7 +729,8 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
   $('slow').onclick=()=>speak(S.queue[S.i],0.5);
   $('hint').onclick=()=>{const w=S.queue[S.i];$('qHint').textContent=w.split(' ').map(p=>p.split('').map((c,k)=>k===0||!/[a-z]/i.test(c)?c:'_').join(' ')).join('   ');$('qHint').hidden=false;};
   $('qForm').onsubmit=e=>{e.preventDefault();if(!S.busy)check($('ans').value);};
-  $('quit').onclick=()=>{endRun();goHome();};
+  // Pausing keeps the saved mission; only finishing it or starting a new one replaces it.
+  $('quit').onclick=goHome;
   function anim(el,cls,ms){el.classList.remove(cls);void el.offsetWidth;el.classList.add(cls);setTimeout(()=>el.classList.remove(cls),ms);}
   function check(raw){
     const w=S.queue[S.i];if(!norm(raw))return;
