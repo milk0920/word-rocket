@@ -30,7 +30,8 @@ self.addEventListener('fetch', (e) => {
     return;
   }
   e.respondWith(fetch(e.request).then((res) => {
-    if (res.ok) caches.open(PAGE).then((c) => c.put(e.request, res.clone()));
+    // A ?wr= address carries a child's data once; keep it out of the cache.
+    if (res.ok && !url.search) caches.open(PAGE).then((c) => c.put(e.request, res.clone()));
     return res;
   }).catch(() => caches.match(e.request).then((hit) => hit || caches.match('index.html'))));
 });

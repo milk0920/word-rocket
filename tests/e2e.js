@@ -242,6 +242,40 @@ async function uploadPhoto(page, file) {
       assert(none.includes('這個瀏覽器不能發音') && none.includes('LINE 內建瀏覽器 14') && none.includes('語音無'), 'missing-speech reason names the browser: ' + none);
     });
 
+    await check('no speech in LINE: banner opens Chrome and carries the mission', async () => {
+      const ctx = await browser.newContext({ ...devices['Pixel 7'], userAgent: devices['Pixel 7'].userAgent + ' Line/14.19.1' });
+      await ctx.addInitScript(() => Object.defineProperty(window, 'speechSynthesis', { value: undefined }));
+      const page = await ctx.newPage();
+      await page.goto(URL);
+      assert(await page.$eval('#pickChromeNote', e => !e.hidden && e.textContent.includes('不能發音') && e.querySelector('button').textContent === '用 Chrome 打開'), 'banner on the picker');
+      await page.click('#pickBlock');
+      await page.click('#toPaste');
+      await page.fill('#paste', 'apple\ntiger\npencil');
+      await page.click('#clean');
+      await page.click('#launch');
+      await page.waitForSelector('#vQuiz:not([hidden])');
+      await answer(page, true);
+      await answer(page, false);
+      await page.click('#quit');
+      assert(await page.$eval('#inAppNote', e => !e.hidden && e.querySelector('button').textContent === '用 Chrome 打開，接著練'), 'banner on home offers to carry the mission');
+      await page.screenshot({ path: path.join(SHOTS, 'chrome-banner.png') });
+      const before = await page.evaluate(() => ({ i: window.__wr.S.i, q: window.__wr.S.queue.join(), book: Object.keys(JSON.parse(localStorage.getItem('wordRocket.v1')).book) }));
+      const link = await page.evaluate(() => window.__wr.chromeLink());
+      const m = link.match(/^intent:\/\/([^?]+)(\?wr=[A-Za-z0-9_-]+)#Intent;scheme=(https?);package=com\.android\.chrome;end$/);
+      assert(m, 'intent link: ' + link.slice(0, 120));
+      await ctx.close();
+      const chrome = await (await browser.newContext({ ...devices['Pixel 7'] })).newPage();
+      await chrome.goto(`${m[3]}://${m[1]}${m[2]}`);
+      assert(await chrome.evaluate(() => location.search === ''), 'carried data leaves the address bar');
+      assert(await chrome.$eval('#pickChromeNote', e => e.hidden), 'no banner in Chrome');
+      assert(await chrome.$eval('#resumeBtn', e => !e.hidden && e.textContent.includes('3 / 3')), 'Chrome offers to resume question 3 of 3');
+      await chrome.click('#resumeBtn');
+      await chrome.waitForSelector('#vQuiz:not([hidden])');
+      const after = await chrome.evaluate(() => ({ i: window.__wr.S.i, q: window.__wr.S.queue.join(), book: Object.keys(JSON.parse(localStorage.getItem('wordRocket.v1')).book) }));
+      assert(same(before, after), JSON.stringify([before, after]));
+      assert(await chrome.evaluate(() => document.body.classList.contains('theme-block')), 'theme carried');
+    });
+
     await check('WR-3 hints: few words, missing voice, in-app browser', async () => {
       const page = await open(browser, 'Galaxy Tab S4');
       const got = await uploadPhoto(page, 'one-word.png');

@@ -186,6 +186,9 @@ body.theme-block .panel,body.theme-block button,body.theme-block .field,body.the
 .empty{text-align:center;color:var(--muted);padding:14px 6px;font-size:15px;line-height:1.7;margin:0}
 ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
 .msg{font-size:14px;color:var(--fuel);margin:0;text-align:center}
+.chrome-note{background:#ffd23a;color:#2a1600;border-radius:12px;padding:12px;margin:0 0 14px;text-align:center;font-size:16px;font-weight:700}
+.chrome-note button{display:block;width:100%;margin-top:10px;padding:12px;border:0;border-radius:10px;background:#2a1600;color:#ffd23a;font:inherit;font-size:18px}
+.chrome-note small{display:block;margin-top:8px;font-weight:400;font-size:14px}
 @media (prefers-reduced-motion:reduce){.rocket{transition:none}.ready .flame,.launched .flame,.qrocket .flame,.shake .rocket,.streak,.newp,.boom,.wobble,.hit,.laser.fire{animation:none}}
 </style>
 
@@ -202,6 +205,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
   </header>
 
   <section id="vPick" hidden>
+    <div class="chrome-note" id="pickChromeNote" hidden></div>
     <button class="go" id="resumeBtn" hidden style="width:100%;margin-bottom:14px;font-size:20px"></button>
     <h2 style="margin:4px 0 12px">今天要用哪一種冒險練單字？</h2>
     <div class="pick">
@@ -222,7 +226,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
       <div class="pad"></div>
     </section>
 
-    <p class="msg" id="inAppNote" hidden style="background:#0006;border:1px solid var(--line);border-radius:12px;padding:10px">這個頁面是在其他 App 裡面打開的，照片辨識和智慧鏡頭按鈕可能不能用。請按右上角的選單，選「在 Chrome 中開啟」。</p>
+    <div class="chrome-note" id="inAppNote" hidden></div>
     <section class="panel" id="s1">
       <button class="go" id="resumeHome" hidden style="font-size:19px"></button>
       <h2 data-t="missionTitle">今天的任務：裝燃料</h2>
@@ -399,7 +403,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
   const CHEST='<svg viewBox="0 0 120 90" aria-label="寶箱"><rect x="10" y="38" width="100" height="46" rx="6" fill="#a0612a" stroke="#140a18" stroke-width="3"/><path d="M10 40 Q60 0 110 40 Z" fill="#c07a36" stroke="#140a18" stroke-width="3"/><rect x="10" y="36" width="100" height="8" fill="#ffcf4a" stroke="#140a18" stroke-width="2"/><rect x="52" y="44" width="16" height="18" rx="3" fill="#ffcf4a" stroke="#140a18" stroke-width="2"/><circle cx="60" cy="20" r="7" fill="#fff6c0"/></svg>';
   for(let i=0;i<7;i++){const s=document.createElement('div');s.className='streak';s.style.top=(10+i*16)+'px';s.style.width=(40+Math.random()*60)+'px';s.style.animationDelay=(-Math.random()*1.2)+'s';s.style.animationDuration=(0.9+Math.random()*0.8)+'s';$('scene').prepend(s);}
 
-  const APP_VERSION='1.13';
+  const APP_VERSION='1.14';
   // Which browser and window the page runs in, so a screenshot tells why speech is missing.
   function browserInfo(){
     const ua=navigator.userAgent,m=(re,n)=>{const r=ua.match(re);return r?n+(r[1]?' '+r[1].split('.')[0]:''):'';};
@@ -416,6 +420,14 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
   let D=fresh();
   try{const raw=localStorage.getItem(KEY);if(raw){const o=JSON.parse(raw);D=Object.assign(fresh(),o);D.settings=Object.assign(fresh().settings,o.settings||{});}}catch(e){}
   const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(D));}catch(e){}};
+  // Data carried over by the 用 Chrome 打開 button (?wr=): lists, records and the saved mission join this browser's.
+  (()=>{const q=new URLSearchParams(location.search),raw=q.get('wr');if(!raw)return;
+    try{const o=JSON.parse(decodeURIComponent(escape(atob(raw.replace(/-/g,'+').replace(/_/g,'/')))));
+      Object.assign(D.lists,o.lists||{});Object.assign(D.book,o.book||{});
+      if(Array.isArray(o.planets)&&o.planets.length>D.planets.length)D.planets=o.planets;
+      if(o.settings)Object.assign(D.settings,o.settings);
+      if(o.run)D.run=o.run;save();}catch(e){}
+    q.delete('wr');history.replaceState(null,'',location.pathname+(q.toString()?'?'+q:'')+location.hash);})();
 
   const VIEWS=['vPick','vHome','vHelp','vLearn','vQuiz','vResult','vLand','vBook','vSet'];
   const view=v=>{VIEWS.forEach(x=>$(x).hidden=x!==v);scrollTo(0,0);};
@@ -542,7 +554,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
   function speakNote(t){document.querySelectorAll('.speak-note').forEach(e=>{e.textContent=t;e.hidden=!t;});}
   let speakJob=0;
   function speak(w,rate){
-    if(!synth){$('sceneMsg').textContent='這台裝置不能發音';speakNote('沒有聲音：這個瀏覽器不能發音（'+browserInfo()+'）');return false;}
+    if(!synth){$('sceneMsg').textContent='這台裝置不能發音';speakNote('沒有聲音：這個瀏覽器不能發音，請回首頁按「用 Chrome 打開」（'+browserInfo()+'）');return false;}
     const job=++speakJob;
     if(!voice)pickVoice();
     speakNote('');
@@ -595,7 +607,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
   $('pickSpaceArt').innerHTML='<div style="width:54px">'+ROCKET+'</div>';
   $('pickHeroArt').innerHTML='<div style="display:flex;align-items:flex-end;gap:2px"><div style="width:74px">'+HERO+'</div><div style="width:66px">'+GOB+'</div></div>';
   function showPick(){
-    if(synth)synth.cancel();
+    if(synth)synth.cancel();chromeNote($('pickChromeNote'));
     const r=D.run;$('resumeBtn').hidden=!r;
     if(r)$('resumeBtn').textContent=resumeLabel();
     ['Space','Hero','Block'].forEach(k=>{const b=$('pick'+k),on=D.settings.theme===k.toLowerCase();b.style.outline=on?'4px solid #ffd23a':'';b.querySelector('.last').hidden=!on;});
@@ -608,7 +620,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
   $('pickBlock').onclick=()=>{applyTheme('block');goHome();};
   $('theme').onchange=()=>applyTheme($('theme').value);
   function resumeLabel(){const r=D.run;return r?'繼續上次的任務：'+r.name+'（'+Math.min(r.i+1,r.queue.length)+' / '+r.queue.length+'）':'';}
-  function goHome(){if(synth)synth.cancel();speakJob++;speakNote('');$('resumeHome').hidden=!D.run;$('resumeHome').textContent=resumeLabel();stage.classList.remove('ready','launched','shake');fuel(0);homeStep('s1');renderSaved();view('vHome');}
+  function goHome(){if(synth)synth.cancel();speakJob++;speakNote('');chromeNote($('inAppNote'));$('resumeHome').hidden=!D.run;$('resumeHome').textContent=resumeLabel();stage.classList.remove('ready','launched','shake');fuel(0);homeStep('s1');renderSaved();view('vHome');}
   $('homeBtn').onclick=goHome;$('setHome').onclick=$('bHome').onclick=$('landHome').onclick=goHome;
   function voiceCheck(){
     if(!synth){$('voiceMsg').textContent='這台裝置不能發音。';$('voiceMsg').hidden=false;return;}
@@ -855,8 +867,25 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
     if(!b.dataset.sure){b.dataset.sure=1;b.textContent='確定要清除？再按一次';return;}
     const th=D.settings.theme;D=fresh();D.settings.theme=th;save();header();delete b.dataset.sure;b.textContent='清除所有紀錄';$('wipeMsg').textContent=T.wiped;$('wipeMsg').hidden=false;};
 
-  // Android in-app browsers (WebView) block some features; Chrome and Chrome Custom Tabs do not say "wv".
-  $('inAppNote').hidden=!/; wv\)|FBAN|FBAV|Instagram|Line\//i.test(navigator.userAgent);
+  // A window that cannot speak, or an app's built-in browser (LINE, Facebook, Android WebView), gets a banner
+  // with a button that opens Chrome and carries this browser's lists, records and saved mission along.
+  const IN_APP=/; wv\)|FBAN|FBAV|Instagram|Line\//i.test(navigator.userAgent),ANDROID=/Android/i.test(navigator.userAgent);
+  const NEED_CHROME=!window.speechSynthesis||IN_APP;
+  function chromeLink(){
+    const pack=JSON.stringify({lists:D.lists,book:D.book,planets:D.planets,settings:D.settings,run:D.run});
+    const b64=btoa(unescape(encodeURIComponent(pack))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    return 'intent://'+location.host+location.pathname+'?wr='+b64+'#Intent;scheme='+location.protocol.slice(0,-1)+';package=com.android.chrome;end';
+  }
+  function chromeNote(el){
+    el.hidden=!NEED_CHROME;if(!NEED_CHROME)return;
+    el.textContent=!window.speechSynthesis?'這裡不能發音，聽寫會沒有聲音。請用 Chrome 打開。':'這個頁面是在其他 App 裡面打開的，可能不能發音、不能辨識照片。請用 Chrome 打開。';
+    if(!ANDROID){const m=document.createElement('small');m.textContent='請把網址複製到 Chrome 或 Safari 打開。';el.append(m);return;}
+    const b=document.createElement('button'),m=document.createElement('small');
+    b.textContent=D.run?'用 Chrome 打開，接著練':'用 Chrome 打開';m.hidden=true;
+    m.textContent='打不開 Chrome？請大人幫忙安裝或打開 Chrome，再用 Chrome 打開這個網址。';
+    b.onclick=()=>{location.href=chromeLink();setTimeout(()=>{if(document.visibilityState==='visible')m.hidden=false;},1500);};
+    el.append(b,m);
+  }
   // The child picks an adventure every time the app opens; the last one is marked.
   applyTheme(THEMES[D.settings.theme]?D.settings.theme:'space');
   showPick();
@@ -872,6 +901,6 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
   addEventListener('resize',size);size();requestAnimationFrame(draw);
   // Offline support and "add to home screen". Not available inside the Claude preview, which is fine.
   if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='127.0.0.1'))navigator.serviceWorker.register('sw.js').catch(()=>{});
-  window.__wr={parse,lookup,S,same};
+  window.__wr={parse,lookup,S,same,chromeLink};
 })();
 </script>
