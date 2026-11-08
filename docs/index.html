@@ -399,8 +399,18 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
   const CHEST='<svg viewBox="0 0 120 90" aria-label="寶箱"><rect x="10" y="38" width="100" height="46" rx="6" fill="#a0612a" stroke="#140a18" stroke-width="3"/><path d="M10 40 Q60 0 110 40 Z" fill="#c07a36" stroke="#140a18" stroke-width="3"/><rect x="10" y="36" width="100" height="8" fill="#ffcf4a" stroke="#140a18" stroke-width="2"/><rect x="52" y="44" width="16" height="18" rx="3" fill="#ffcf4a" stroke="#140a18" stroke-width="2"/><circle cx="60" cy="20" r="7" fill="#fff6c0"/></svg>';
   for(let i=0;i<7;i++){const s=document.createElement('div');s.className='streak';s.style.top=(10+i*16)+'px';s.style.width=(40+Math.random()*60)+'px';s.style.animationDelay=(-Math.random()*1.2)+'s';s.style.animationDuration=(0.9+Math.random()*0.8)+'s';$('scene').prepend(s);}
 
-  const APP_VERSION='1.12';
-  document.querySelectorAll('.ver').forEach(e=>e.textContent='版本 '+APP_VERSION);
+  const APP_VERSION='1.13';
+  // Which browser and window the page runs in, so a screenshot tells why speech is missing.
+  function browserInfo(){
+    const ua=navigator.userAgent,m=(re,n)=>{const r=ua.match(re);return r?n+(r[1]?' '+r[1].split('.')[0]:''):'';};
+    const name=m(/Line\/([\d.]+)/,'LINE 內建瀏覽器')||m(/FBAV\/([\d.]+)/,'Facebook 內建瀏覽器')||m(/Instagram ([\d.]+)/,'Instagram 內建瀏覽器')||
+      m(/SamsungBrowser\/([\d.]+)/,'三星網際網路')||m(/MiuiBrowser\/([\d.]+)/,'小米瀏覽器')||m(/HeyTapBrowser\/([\d.]+)/,'HeyTap 瀏覽器')||
+      m(/EdgA\/([\d.]+)/,'Edge')||m(/OPR\/([\d.]+)/,'Opera')||m(/Firefox\/([\d.]+)/,'Firefox')||
+      (/; wv\)/.test(ua)?m(/Chrome\/([\d.]+)/,'App 內建網頁')||'App 內建網頁':'')||m(/Chrome\/([\d.]+)/,'Chrome')||'其他瀏覽器';
+    const mode=matchMedia('(display-mode: standalone)').matches?'主畫面 App':'瀏覽器分頁';
+    return name+'・'+mode+'・語音'+(window.speechSynthesis?'有':'無');
+  }
+  document.querySelectorAll('.ver').forEach(e=>e.textContent='版本 '+APP_VERSION+'・'+browserInfo());
   const KEY='wordRocket.v1';
   const fresh=()=>({lists:{},book:{},planets:[],settings:{bookOn:true,rate:0.9,accent:'en-US',theme:''}});
   let D=fresh();
@@ -532,7 +542,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
   function speakNote(t){document.querySelectorAll('.speak-note').forEach(e=>{e.textContent=t;e.hidden=!t;});}
   let speakJob=0;
   function speak(w,rate){
-    if(!synth){$('sceneMsg').textContent='這台裝置不能發音';speakNote('沒有聲音：這台裝置不能發音');return false;}
+    if(!synth){$('sceneMsg').textContent='這台裝置不能發音';speakNote('沒有聲音：這個瀏覽器不能發音（'+browserInfo()+'）');return false;}
     const job=++speakJob;
     if(!voice)pickVoice();
     speakNote('');

@@ -206,6 +206,7 @@ async function uploadPhoto(page, file) {
 
     await check('version label and the reason speech stays silent', async () => {
       const fake = mode => {
+        if (mode === 'none') { Object.defineProperty(window, 'speechSynthesis', { value: undefined }); return; }
         const s = { speaking: false, paused: false, getVoices: () => [], cancel() {}, resume() { s.paused = false; },
           addEventListener() {}, speak(u) {
             if (mode === 'error') setTimeout(() => u.onerror && u.onerror({ error: 'not-allowed' }), 10);
@@ -214,11 +215,12 @@ async function uploadPhoto(page, file) {
         Object.defineProperty(window, 'speechSynthesis', { value: s });
       };
       const run = async mode => {
-        const ctx = await browser.newContext({ ...devices['Pixel 7'] });
+        const ua = devices['Pixel 7'].userAgent + (mode === 'none' ? ' Line/14.19.1' : '');
+        const ctx = await browser.newContext({ ...devices['Pixel 7'], userAgent: ua });
         await ctx.addInitScript(fake, mode);
         const page = await ctx.newPage();
         await page.goto(URL);
-        assert(await page.$eval('#vPick .ver', e => /^版本 \d+\.\d+$/.test(e.textContent)), 'version on the picker');
+        if (mode !== 'none') assert(await page.$eval('#vPick .ver', e => /^版本 \d+\.\d+・Chrome \d+・瀏覽器分頁・語音有$/.test(e.textContent)), 'version on the picker');
         await page.click('#pickSpace');
         await page.click('#toPaste');
         await page.fill('#paste', 'apple\ntiger\npencil');
@@ -236,6 +238,8 @@ async function uploadPhoto(page, file) {
       const silent = await run('silent');
       assert(silent.includes('語音引擎沒有開始念') && silent.includes('英文語音 0 個'), 'never-started reason shown: ' + silent);
       assert(await run('ok') === '', 'no note when speech starts');
+      const none = await run('none');
+      assert(none.includes('這個瀏覽器不能發音') && none.includes('LINE 內建瀏覽器 14') && none.includes('語音無'), 'missing-speech reason names the browser: ' + none);
     });
 
     await check('WR-3 hints: few words, missing voice, in-app browser', async () => {
