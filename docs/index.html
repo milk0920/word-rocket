@@ -189,7 +189,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
       <h2>辨識照片裡的單字</h2>
       <img id="photoPrev" alt="上傳的單字表照片" style="max-height:200px;object-fit:contain;border-radius:12px;border:1px solid var(--line)">
       <p class="msg" id="ocrMsg">準備中…</p>
-      <p class="muted" id="ocrSub">第一次使用要下載辨識程式（約 9 MB），請稍等。之後就會比較快。</p>
+      <p class="muted" id="ocrSub">第一次使用要下載辨識程式（約 30 MB），請在 Wi-Fi 下使用並稍等。之後就會比較快。</p>
       <button class="ghost" id="ocrCancel">取消</button>
     </section>
 
@@ -362,10 +362,14 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
         if(part.length===1)continue;
         if(/^(unit|lesson|part|page|chapter|review|words?|vocabulary|n|v|vt|vi|adj|adv|prep|conj|pron|art|num|aux)$/i.test(part))continue;
         if(/^[A-Z]{2,4}$/.test(part)&&!lookup(part))continue;      // stray capitals that are not real words (OCR noise)
-        if(photo&&!lookup(part)){                                   // OCR noise: unknown short bits
-          const toks=part.split(' ');
-          if(toks.length===1&&part.length<=3)continue;
-          if(toks.length>1&&toks.some(t=>t.length<=2&&!lookup(t)&&!/^[aI]$/i.test(t)))continue;
+        if(photo&&!lookup(part)){
+          // OCR reads a Chinese meaning next to a word as stray letters ("pins E"), so trim short unknown tokens at the ends.
+          const toks=part.split(' '),junk=t=>t.length<=2&&!lookup(t)&&!/^[aI]$/i.test(t);
+          while(toks.length>1&&junk(toks[toks.length-1]))toks.pop();
+          while(toks.length>1&&junk(toks[0]))toks.shift();
+          part=toks.join(' ');
+          if(toks.length===1&&part.length<=3&&!lookup(part))continue;
+          if(toks.some(junk))continue;
         }
         part=tidyCase(part);
         const k=norm(part);if(seen.has(k))continue;seen.add(k);out.push(part);
@@ -430,17 +434,17 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
       const png=await prepImage(f);stage='下載辨識程式';
       if(job!==ocrJob)return;
       if(!ocrWorker)ocrWorker=new Worker('ocr/ocr-worker.js');
-      const tsv=await new Promise((res,rej)=>{
+      const ocrLines=await new Promise((res,rej)=>{
         ocrWorker.onmessage=e=>{const m=e.data;
           if(m.stage==='load'){stage=ocrWorker.__loaded?'正在辨識照片':'下載辨識程式';$('ocrSub').hidden=!!ocrWorker.__loaded;}
           else if(m.stage==='read'){ocrWorker.__loaded=true;stage='正在辨識照片';$('ocrSub').hidden=true;}
-          else if(m.error)rej(new Error(m.error));else res(m.tsv);};
+          else if(m.error)rej(new Error(m.error));else res(m.lines);};
         ocrWorker.onerror=e=>rej(new Error('worker: '+(e.message||'load failed')));
         ocrWorker.postMessage({base:new URL('ocr/',location.href).href,image:png},[png]);
       });
       if(job!==ocrJob)return;
       clearInterval(ocrTimer);
-      const list=parse(tsvToText(tsv),true);
+      const list=parse(ocrLines.join('\n'),true);
       if(!list.length){$('ocrMsg').textContent='照片裡沒有認出英文單字。換一張比較清楚、光線比較亮的照片試試，或用打字輸入。';return;}
       const d=new Date();ready(list,(d.getMonth()+1)+'/'+d.getDate()+' 的單字',true);
     }catch(err){
@@ -450,48 +454,16 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
       if(ocrWorker){ocrWorker.terminate();ocrWorker=null;}
     }finally{setTimeout(()=>URL.revokeObjectURL(url),60000);}
   };
+  // Downscale big camera photos before handing them to the worker; the detector reads at most 1280 px anyway.
   async function prepImage(file){
     let bmp;
     try{bmp=await createImageBitmap(file,{imageOrientation:'from-image'});}
     catch(e){bmp=await new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=URL.createObjectURL(file);});}
-    const w0=bmp.width,h0=bmp.height,long=Math.max(w0,h0);
-    const k=long>2200?2200/long:long<1400?1400/long:1;
-    const W=Math.round(w0*k),H=Math.round(h0*k);
-    const c=document.createElement('canvas');c.width=W;c.height=H;
-    const g=c.getContext('2d',{willReadFrequently:true});g.drawImage(bmp,0,0,W,H);
-    // flatten uneven lighting: divide by a heavily blurred copy (the paper's background)
-    const bc=document.createElement('canvas');const bw=Math.max(8,Math.round(W/24)),bh=Math.max(8,Math.round(H/24));
-    bc.width=bw;bc.height=bh;const bg=bc.getContext('2d',{willReadFrequently:true});
-    bg.filter='blur(2px)';bg.drawImage(c,0,0,bw,bh);
-    const big=document.createElement('canvas');big.width=W;big.height=H;const bgg=big.getContext('2d',{willReadFrequently:true});
-    bgg.imageSmoothingEnabled=true;bgg.drawImage(bc,0,0,W,H);
-    const px=g.getImageData(0,0,W,H),bp=bgg.getImageData(0,0,W,H).data,d=px.data;
-    for(let i=0;i<d.length;i+=4){
-      const y=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
-      const b=Math.max(40,0.299*bp[i]+0.587*bp[i+1]+0.114*bp[i+2]);
-      let v=255*y/b;v=v>=255?255:(v-110)*1.8+110;v=v<0?0:v>255?255:v;
-      d[i]=d[i+1]=d[i+2]=v;d[i+3]=255;
-    }
-    g.putImageData(px,0,0);
+    const long=Math.max(bmp.width,bmp.height),k=long>2000?2000/long:1;
+    const c=document.createElement('canvas');c.width=Math.round(bmp.width*k);c.height=Math.round(bmp.height*k);
+    c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);
     const blob=await new Promise(r=>c.toBlob(r,'image/png'));
     return await blob.arrayBuffer();
-  }
-  function tsvToText(tsv){
-    const lines=new Map();
-    for(const row of String(tsv||'').split('\n')){
-      const c=row.split('\t');if(c.length<12||c[0]!=='5')continue;
-      const key=c[2]+'-'+c[3]+'-'+c[4],conf=parseFloat(c[10]),txt=c.slice(11).join(' ').trim();
-      const clean=txt.replace(/^[^A-Za-z]+|[^A-Za-z]+$/g,'');
-      const good=conf>=55&&/^[A-Za-z][A-Za-z'.\-]*$/.test(clean)&&!/^\d/.test(txt);
-      if(!lines.has(key))lines.set(key,[]);
-      lines.get(key).push({t:good?clean:'',l:+c[6],r:+c[6]+(+c[8]),h:+c[9]});
-    }
-    // words far apart (table columns) or with a dropped word between them become separate items
-    return [...lines.values()].map(ws=>{let out='',prev=null;
-      for(const w of ws){
-        if(prev){const gap=w.l-prev.r,h=Math.max(prev.h,w.h,1);out+=(!w.t||!prev.t||gap>h*0.9)?'  ':' ';}
-        out+=w.t;prev=w;}
-      return out;}).join('\n');
   }
   $('toType').onclick=()=>{const d=new Date();ready([],(d.getMonth()+1)+'/'+d.getDate()+' 的單字');setTimeout(()=>$('addWord').focus(),50);};
   $('addForm').onsubmit=e=>{e.preventDefault();
@@ -664,6 +636,6 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
     for(const s of stars){ctx.globalAlpha=.45+.55*Math.abs(Math.sin(s.p+t/900));ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,6.28);ctx.fill();}
     if(!still)requestAnimationFrame(draw);}
   addEventListener('resize',size);size();requestAnimationFrame(draw);
-  window.__wr={parse,lookup,S,same,tsvToText};
+  window.__wr={parse,lookup,S,same};
 })();
 </script>

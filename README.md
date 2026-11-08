@@ -8,9 +8,9 @@
 
 1. 用 Chrome 打開上面的網址。
 2. 在 Chrome 選單按「加到主畫面」，之後從主畫面的圖示打開。
-3. 按綠色按鈕打開 Google 智慧鏡頭，拍單字表，選「文字」、「全選」、「複製」，回到單字火箭按「貼上單字」。印刷的單字表也可以按「上傳單字表照片」直接辨識。
+3. 按綠色按鈕打開 Google 智慧鏡頭，拍單字表，選「文字」、「全選」、「複製」，回到單字火箭按「貼上單字」。也可以按「上傳單字表照片」直接辨識，印刷和手寫的單字表都可以。辨識完請看一下有沒有認錯的字。
 
-手寫的單字表請用 Google 智慧鏡頭或自己打字。網頁內的照片辨識只認得印刷字。
+第一次上傳照片要下載約 30 MB 的辨識程式，請在 Wi-Fi 下使用。
 
 單字清單、錯題本和星球只存在這台裝置的瀏覽器裡，不會上傳。照片在裝置上辨識，也不會上傳。
 
@@ -46,7 +46,7 @@ GitHub Pages 發布 `main` 分支的 `docs/` 資料夾。
 
 ## 修改字典
 
-字典 `data/dict.json` 由 ECDICT 和 OpenCC 產生。來源固定在 `tools/fetch_sources.sh` 寫的 commit。
+字典 `data/dict.json` 由 ECDICT 和 OpenCC 產生，照片辨識用 PaddleOCR 的 PP-OCRv6 模型和 onnxruntime-web。來源固定在 `tools/fetch_sources.sh` 寫的 commit 和檔案雜湊值。
 
 - 要修正某個字的中文意思，編輯 `tools/overrides.json`。
 - 要加入字典沒有的字或片語，編輯 `tools/supplement.json`。

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Fetch the pinned dictionary sources into .cache/src (not committed).
+# Fetch the pinned dictionary and OCR sources into .cache/src (not committed).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 fetch() {  # fetch <dir> <repo url> <sha> [sparse paths...]
@@ -12,8 +12,19 @@ fetch() {  # fetch <dir> <repo url> <sha> [sparse paths...]
   git -C "$dir" fetch -q --depth 1 --filter=blob:none origin "$sha"
   git -C "$dir" checkout -q FETCH_HEAD
 }
+download() {  # download <file> <url> <sha256>
+  local file=".cache/src/$1"
+  if [ -f "$file" ] && echo "$3  $file" | sha256sum -c --status; then return; fi
+  mkdir -p .cache/src
+  curl -fsSL -o "$file" "$2"
+  echo "$3  $file" | sha256sum -c --status || { echo "checksum mismatch: $1" >&2; exit 1; }
+}
 fetch ECDICT https://github.com/skywind3000/ECDICT.git 39cfb9672c0906b63569e0453c2e6abfb9ab182a /ecdict.csv /LICENSE
 fetch OpenCC https://github.com/BYVoid/OpenCC.git fae2a0a911c30764e669a7d8b0591cd8e852934a /data/dictionary/ /LICENSE
-fetch tesseract.js-core https://github.com/naptha/tesseract.js-core.git acffef2b66eb44a31df297e11d905f4b39001068 /tesseract-core-simd-lstm.wasm.js /tesseract-core-lstm.wasm.js /LICENSE
-fetch tessdata_fast https://github.com/tesseract-ocr/tessdata_fast.git 87416418657359cb625c412a48b6e1d6d41c29bd /eng.traineddata /LICENSE
+download rapidocr-3.10.0-py3-none-any.whl \
+  https://files.pythonhosted.org/packages/59/07/203065283bba0c5e9c10af3602dc25ab3e59ee54dc2d1d22c8faeabf5ed8/rapidocr-3.10.0-py3-none-any.whl \
+  2fc34e26cd0f48514804a94f8832283039c7334076bff60768b1fed9ad068050
+download onnxruntime-web-1.30.0.tgz \
+  https://registry.npmjs.org/onnxruntime-web/-/onnxruntime-web-1.30.0.tgz \
+  d2228df7e4616bc3348bf504ee888f3bec43789a273f0a63f3e68d203ce3bf71
 echo "sources ready in .cache/src"

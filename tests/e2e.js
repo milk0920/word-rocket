@@ -107,7 +107,7 @@ async function uploadPhoto(page, file) {
         const page = await open(browser, 'Galaxy Tab S4');
         const got = await uploadPhoto(page, file);
         await page.screenshot({ path: path.join(SHOTS, shot) });
-        assert(same(got, OCR_EXPECTED), `got ${JSON.stringify(got)}`);
+        assert(same([...got].sort(), [...OCR_EXPECTED].sort()), `got ${JSON.stringify(got)}`);  // the quiz shuffles, so order does not matter
       });
     }
 

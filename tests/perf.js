@@ -1,6 +1,6 @@
 // Perf probe from the WR-1 plan. Run: node tests/perf.js [runs]
 // Moto G4 emulation, CPU throttled 4x, Fast 3G network, gzip like GitHub Pages.
-// home = time until the page script has run. Prints median and range per metric.
+// home = time until the page script has run. Budgets follow the WR-4 plan. Prints median and range per metric.
 const { chromium, devices } = require('playwright');
 const http = require('http');
 const fs = require('fs');
@@ -57,7 +57,7 @@ async function run(browser) {
   try {
     for (let i = 0; i < RUNS; i++) { const r = await run(browser); rows.push(r); console.log(`run ${i + 1}`, JSON.stringify(r)); }
   } finally { await browser.close(); server.close(); }
-  const budgets = { home: 4, first: 40, warm: 8 };
+  const budgets = { home: 4, first: 180, warm: 15 };
   let failed = false;
   for (const k of Object.keys(budgets)) {
     const v = rows.map(r => r[k]);

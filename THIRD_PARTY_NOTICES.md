@@ -1,6 +1,6 @@
 # Third-party notices
 
-單字火箭 ships data and code from these projects. Each section names the pinned commit and the files that use it. The full Apache License 2.0 text is in `licenses/Apache-2.0.txt`, and the ECDICT MIT text is in `licenses/ECDICT-MIT.txt`.
+單字火箭 ships data, models and code from these projects. Each section names the pinned commit and the files that use it. The full Apache License 2.0 text is in `licenses/Apache-2.0.txt`, and the ECDICT MIT text is in `licenses/ECDICT-MIT.txt`.
 
 ## ECDICT
 
@@ -38,14 +38,14 @@ SOFTWARE.
 - Used for: the simplified-to-Taiwan-traditional tables that `tools/build_dict.py` applies to the meanings
 - License: Apache License 2.0
 
-## tesseract.js-core
+## PaddleOCR PP-OCRv6 models, from RapidOCR
 
-- Source: https://github.com/naptha/tesseract.js-core at `acffef2b66eb44a31df297e11d905f4b39001068`
-- Used for: `docs/ocr/tesseract-core-simd-lstm.wasm.js` and `docs/ocr/tesseract-core-lstm.wasm.js`, copied unchanged
-- License: Apache License 2.0. The files contain Tesseract OCR compiled to WebAssembly.
+- Source: the `rapidocr` 3.10.0 wheel on PyPI, sha256 `2fc34e26cd0f48514804a94f8832283039c7334076bff60768b1fed9ad068050`
+- Used for: `docs/ocr/PP-OCRv6_det_small.onnx`, `docs/ocr/PP-OCRv6_rec_small.onnx`, copied unchanged, and `docs/ocr/keys.json`, the character list read from the recognition model
+- License: Apache License 2.0. The model weights are by Baidu and the PaddleOCR rights holders. See `licenses/RapidOCR-MODEL_LICENSES.md`.
 
-## tessdata_fast
+## onnxruntime-web
 
-- Source: https://github.com/tesseract-ocr/tessdata_fast at `87416418657359cb625c412a48b6e1d6d41c29bd`
-- Used for: `docs/ocr/eng-fast.js`, which holds `eng.traineddata` encoded as base64
-- License: Apache License 2.0
+- Source: the `onnxruntime-web` 1.30.0 package on npm, sha256 `d2228df7e4616bc3348bf504ee888f3bec43789a273f0a63f3e68d203ce3bf71`
+- Used for: `docs/ocr/ort.wasm.min.js`, `docs/ocr/ort-wasm-simd-threaded.mjs`, `docs/ocr/ort-wasm-simd-threaded.wasm`, copied unchanged
+- License: MIT. The npm package has no license file, so `licenses/onnxruntime-MIT.txt` is the LICENSE from https://github.com/microsoft/onnxruntime at tag `v1.30.0`.
