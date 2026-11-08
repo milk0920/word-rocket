@@ -401,7 +401,8 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
   const homeStep=s=>['s1','s2','s3','s4'].forEach(x=>$(x).hidden=x!==s);
   const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
-  const norm=s=>String(s).toLowerCase().replace(/[’‘`]/g,"'").replace(/\s+/g,' ').trim();
+  // NFKC turns full-width letters and spaces from Chinese keyboards into plain ones; \p{Cf} drops invisible characters.
+  const norm=s=>String(s).normalize('NFKC').replace(/\p{Cf}/gu,'').toLowerCase().replace(/[’‘`]/g,"'").replace(/\s+/g,' ').trim();
   const same=(a,b)=>{const c=s=>norm(s).replace(/-/g,' ').replace(/\s+/g,' ').trim();return c(a)===c(b);};  // yo-yo = yo yo
   // Both adventures run the same practice; a theme only supplies art and words.
   const THEMES={

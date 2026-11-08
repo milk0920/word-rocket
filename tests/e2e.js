@@ -61,8 +61,9 @@ async function uploadPhoto(page, file) {
       const page = await open(browser, 'Pixel 7');
       const got = await page.evaluate(() => window.__wr.parse('Unit 3 單字\n1. apple 蘋果\n2. ice cream 冰淇淋\n3. Monday\n4. went\n5. MRT 捷運\n6. yo-yo\n7. teeth n. 牙齒   8. umbrella 雨傘\n2. ice cream'));
       assert(same(got, ['apple', 'ice cream', 'Monday', 'went', 'MRT', 'yo-yo', 'teeth', 'umbrella']), JSON.stringify(got));
-      const rules = await page.evaluate(() => { const s = window.__wr.same; return [s('yo yo', 'yo-yo'), s('ICE  cream', 'ice cream'), s('yoyo', 'yo-yo')]; });
-      assert(same(rules, [true, true, false]), JSON.stringify(rules));
+      const rules = await page.evaluate(() => { const s = window.__wr.same; return [s('yo yo', 'yo-yo'), s('ICE  cream', 'ice cream'), s('yoyo', 'yo-yo'),
+        s('ｂｏｗｌｉｎｇ\u3000ｂｕｍｐｅｒｓ', 'bowling bumpers'), s('bowling\u200b bumpers', 'bowling bumpers'), s('bowling\u00a0bumpers ', 'bowling bumpers'), s('bowlin bumpers', 'bowling bumpers')]; });
+      assert(same(rules, [true, true, false, true, true, true, false]), JSON.stringify(rules));
     });
 
     await check('lane 1 full mission on Pixel 7', async () => {
