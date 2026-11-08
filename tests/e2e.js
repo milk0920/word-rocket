@@ -204,6 +204,40 @@ async function uploadPhoto(page, file) {
       await ctx.close();
     });
 
+    await check('version label and the reason speech stays silent', async () => {
+      const fake = mode => {
+        const s = { speaking: false, paused: false, getVoices: () => [], cancel() {}, resume() { s.paused = false; },
+          addEventListener() {}, speak(u) {
+            if (mode === 'error') setTimeout(() => u.onerror && u.onerror({ error: 'not-allowed' }), 10);
+            if (mode === 'ok') setTimeout(() => u.onstart && u.onstart(), 10);
+          } };
+        Object.defineProperty(window, 'speechSynthesis', { value: s });
+      };
+      const run = async mode => {
+        const ctx = await browser.newContext({ ...devices['Pixel 7'] });
+        await ctx.addInitScript(fake, mode);
+        const page = await ctx.newPage();
+        await page.goto(URL);
+        assert(await page.$eval('#vPick .ver', e => /^版本 \d+\.\d+$/.test(e.textContent)), 'version on the picker');
+        await page.click('#pickSpace');
+        await page.click('#toPaste');
+        await page.fill('#paste', 'apple\ntiger\npencil');
+        await page.click('#clean');
+        await page.click('#launch');
+        await page.waitForSelector('#vQuiz:not([hidden])');
+        await page.click('#say');
+        await page.waitForTimeout(3800);
+        const note = await page.$eval('#vQuiz .speak-note', e => e.hidden ? '' : e.textContent);
+        await ctx.close();
+        return note;
+      };
+      const err = await run('error');
+      assert(err.includes('瀏覽器擋住了發音') && err.includes('not-allowed'), 'error reason shown: ' + err);
+      const silent = await run('silent');
+      assert(silent.includes('語音引擎沒有開始念') && silent.includes('英文語音 0 個'), 'never-started reason shown: ' + silent);
+      assert(await run('ok') === '', 'no note when speech starts');
+    });
+
     await check('WR-3 hints: few words, missing voice, in-app browser', async () => {
       const page = await open(browser, 'Galaxy Tab S4');
       const got = await uploadPhoto(page, 'one-word.png');

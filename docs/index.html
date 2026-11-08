@@ -210,6 +210,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
       <button id="pickHero" style="background:linear-gradient(#3d7a4a,#1f3d27);color:#f5f2e8"><div class="art" id="pickHeroArt"></div><div class="cap"><span class="last" hidden style="display:inline-block;background:#ffd23a;color:#2a1600;border-radius:4px;padding:1px 6px;font-size:12px;font-weight:700;margin-bottom:4px">上次玩的</span><b>英雄對決</b><span>勇者打倒哥布林、魔像和暗影魔王</span></div></button>
     </div>
     <p class="muted" style="margin-top:12px">三種冒險的練習方式和紀錄都一樣。玩到一半想換，按右上角的「換冒險」。</p>
+    <p class="muted ver" style="text-align:center;font-size:12px"></p>
   </section>
 
   <div id="vHome">
@@ -320,6 +321,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
     <div class="prog"><span id="qPhase"></span><span id="qProg"></span></div>
     <button class="speak" id="say"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>聽單字</button>
     <div class="row"><button class="ghost" id="slow">慢速再聽</button><button class="ghost" id="hint">提示</button></div>
+    <p class="msg speak-note" hidden></p>
     <p class="pattern" id="qHint" hidden></p>
     <p class="muted" id="qStreak" style="text-align:center" hidden></p>
     <form id="qForm" style="display:flex;flex-direction:column;gap:10px">
@@ -364,11 +366,13 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
       <select id="accent" class="field" style="width:auto"><option value="en-US">美式</option><option value="en-GB">英式</option></select></label>
     <button class="ghost" id="tryVoice">試聽：banana, water, tomato</button>
     <p class="msg" id="voiceMsg" hidden></p>
+    <p class="msg speak-note" hidden></p>
     <label class="switch"><span><b>冒險主題</b><br><span class="muted">清單、錯題本和收藏三種冒險共用</span></span>
       <select id="theme" class="field" style="width:auto"><option value="space">遨遊星際</option><option value="hero">英雄對決</option><option value="block">方塊打殭屍</option></select></label>
     <button class="danger" id="wipe">清除所有紀錄</button>
     <p class="msg" id="wipeMsg" hidden></p>
     <p class="muted">紀錄只存在這台裝置的瀏覽器裡，換裝置不會跟過去。單字意思來自 ECDICT 字典（MIT 授權），簡轉繁使用 OpenCC 詞表（Apache-2.0 授權）。</p>
+    <p class="muted ver" style="text-align:center;font-size:12px"></p>
     <button class="ghost" id="setHome">回首頁</button>
   </section>
 </main>
@@ -395,6 +399,8 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
   const CHEST='<svg viewBox="0 0 120 90" aria-label="寶箱"><rect x="10" y="38" width="100" height="46" rx="6" fill="#a0612a" stroke="#140a18" stroke-width="3"/><path d="M10 40 Q60 0 110 40 Z" fill="#c07a36" stroke="#140a18" stroke-width="3"/><rect x="10" y="36" width="100" height="8" fill="#ffcf4a" stroke="#140a18" stroke-width="2"/><rect x="52" y="44" width="16" height="18" rx="3" fill="#ffcf4a" stroke="#140a18" stroke-width="2"/><circle cx="60" cy="20" r="7" fill="#fff6c0"/></svg>';
   for(let i=0;i<7;i++){const s=document.createElement('div');s.className='streak';s.style.top=(10+i*16)+'px';s.style.width=(40+Math.random()*60)+'px';s.style.animationDelay=(-Math.random()*1.2)+'s';s.style.animationDuration=(0.9+Math.random()*0.8)+'s';$('scene').prepend(s);}
 
+  const APP_VERSION='1.12';
+  document.querySelectorAll('.ver').forEach(e=>e.textContent='版本 '+APP_VERSION);
   const KEY='wordRocket.v1';
   const fresh=()=>({lists:{},book:{},planets:[],settings:{bookOn:true,rate:0.9,accent:'en-US',theme:''}});
   let D=fresh();
@@ -519,18 +525,32 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
   if(synth){pickVoice();synth.onvoiceschanged=pickVoice;}
   // Android Chrome can leave speech paused after a reload, and can drop an utterance queued right after cancel().
   // So: resume, wait a moment after cancel, and retry once if nothing started.
+  // When nothing is heard, the reason the speech engine gave is shown under the buttons.
+  const SPEAK_ERR={'not-allowed':'瀏覽器擋住了發音，請再按一次「聽單字」','audio-busy':'聲音被別的 App 佔用','audio-hardware':'找不到喇叭或耳機',
+    'network':'語音需要網路，現在連不上','synthesis-unavailable':'找不到英文語音','language-unavailable':'找不到英文語音','voice-unavailable':'找不到英文語音',
+    'synthesis-failed':'語音引擎出錯','text-too-long':'要念的字太長','invalid-argument':'語音設定有誤'};
+  function speakNote(t){document.querySelectorAll('.speak-note').forEach(e=>{e.textContent=t;e.hidden=!t;});}
   let speakJob=0;
   function speak(w,rate){
-    if(!synth){$('sceneMsg').textContent='這台裝置不能發音';return false;}
+    if(!synth){$('sceneMsg').textContent='這台裝置不能發音';speakNote('沒有聲音：這台裝置不能發音');return false;}
     const job=++speakJob;
     if(!voice)pickVoice();
+    speakNote('');
     synth.cancel();synth.resume();
+    let started=false;
     const say=retry=>{
       if(job!==speakJob)return;
       const u=new SpeechSynthesisUtterance(w);u.lang=D.settings.accent;if(voice)u.voice=voice;u.rate=rate||D.settings.rate;
-      let started=false;u.onstart=()=>{started=true;};
+      u.onstart=()=>{started=true;if(job===speakJob)speakNote('');};
+      // interrupted and canceled come from our own cancel(), not from a real problem.
+      u.onerror=e=>{if(job!==speakJob||started||/interrupted|canceled/.test(e.error))return;speakNote('沒有聲音：'+(SPEAK_ERR[e.error]||'語音引擎回報錯誤')+'（'+e.error+'）');};
       synth.speak(u);
-      if(retry)setTimeout(()=>{if(job===speakJob&&!started&&!synth.speaking){synth.cancel();synth.resume();setTimeout(()=>say(false),80);}},1200);
+      setTimeout(()=>{
+        if(job!==speakJob||started||synth.speaking)return;
+        if(retry){synth.cancel();synth.resume();setTimeout(()=>say(false),80);return;}
+        if(!document.querySelector('.speak-note:not([hidden])'))
+          speakNote('沒有聲音：語音引擎沒有開始念（暫停中：'+(synth.paused?'是':'否')+'，英文語音 '+synth.getVoices().filter(v=>/^en/i.test(v.lang)).length+' 個）');
+      },retry?1200:2000);
     };
     setTimeout(()=>say(true),80);
     return true;
@@ -578,7 +598,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
   $('pickBlock').onclick=()=>{applyTheme('block');goHome();};
   $('theme').onchange=()=>applyTheme($('theme').value);
   function resumeLabel(){const r=D.run;return r?'繼續上次的任務：'+r.name+'（'+Math.min(r.i+1,r.queue.length)+' / '+r.queue.length+'）':'';}
-  function goHome(){if(synth)synth.cancel();$('resumeHome').hidden=!D.run;$('resumeHome').textContent=resumeLabel();stage.classList.remove('ready','launched','shake');fuel(0);homeStep('s1');renderSaved();view('vHome');}
+  function goHome(){if(synth)synth.cancel();speakJob++;speakNote('');$('resumeHome').hidden=!D.run;$('resumeHome').textContent=resumeLabel();stage.classList.remove('ready','launched','shake');fuel(0);homeStep('s1');renderSaved();view('vHome');}
   $('homeBtn').onclick=goHome;$('setHome').onclick=$('bHome').onclick=$('landHome').onclick=goHome;
   function voiceCheck(){
     if(!synth){$('voiceMsg').textContent='這台裝置不能發音。';$('voiceMsg').hidden=false;return;}
@@ -587,7 +607,7 @@ ol.steps{margin:0;padding-left:22px;line-height:1.8;color:var(--ink)}
     $('voiceMsg').hidden=has;
   }
   if(synth)synth.addEventListener&&synth.addEventListener('voiceschanged',()=>{if(!$('vSet').hidden)voiceCheck();});
-  $('setBtn').onclick=()=>{setTimeout(voiceCheck,300);$('theme').value=D.settings.theme||'space';$('bookOn').checked=D.settings.bookOn;$('rate').value=String(D.settings.rate);$('accent').value=D.settings.accent;$('wipeMsg').hidden=true;view('vSet');};
+  $('setBtn').onclick=()=>{speakNote('');setTimeout(voiceCheck,300);$('theme').value=D.settings.theme||'space';$('bookOn').checked=D.settings.bookOn;$('rate').value=String(D.settings.rate);$('accent').value=D.settings.accent;$('wipeMsg').hidden=true;view('vSet');};
   $('bookBtn').onclick=()=>{renderBook();view('vBook');};
   $('toHelp').onclick=()=>view('vHelp');$('helpOk').onclick=goHome;
   $('toPaste').onclick=()=>{homeStep('s2');$('pasteMsg').hidden=true;};
