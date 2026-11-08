@@ -23,11 +23,13 @@ const OCR_EXPECTED = ['breakfast', 'brush', 'teeth', 'wash', 'face', 'school bus
   'take a shower', 'go to bed', "o'clock", 'afternoon', 'evening', 'usually', 'yo-yo'];
 
 async function open(browser, device, extra = {}) {
-  const ctx = await browser.newContext({ ...devices[device], ...extra });
+  const { theme, ...opts } = extra;
+  const ctx = await browser.newContext({ ...devices[device], ...opts });
   const page = await ctx.newPage();
   page.errors = [];
   page.on('pageerror', e => page.errors.push(e.message));
   await page.goto(URL);
+  if (await page.$eval('#vPick', e => !e.hidden)) await page.click(extra.theme === 'hero' ? '#pickHero' : '#pickSpace');
   return page;
 }
 async function words(page) { return page.$$eval('#wlist .item b', els => els.map(e => e.textContent)); }
@@ -43,6 +45,7 @@ async function answer(page, right) {
 async function uploadPhoto(page, file) {
   await page.click('#homeBtn');
   await page.evaluate(() => { document.querySelector('#s3').hidden = true; });
+  await page.evaluate(() => { document.querySelector('#photo').value = ''; });
   await page.setInputFiles('#photo', path.join(__dirname, 'fixtures', file));
   await page.waitForFunction(() => !document.querySelector('#s3').hidden ||
     /沒有/.test(document.querySelector('#ocrMsg').textContent), null, { timeout: 120000 });
@@ -82,6 +85,74 @@ async function uploadPhoto(page, file) {
       assert(await page.$eval('#vLand', e => !e.hidden), 'never reached the landing screen');
       await page.screenshot({ path: path.join(SHOTS, 'full-mission.png') });
       assert(page.errors.length === 0, page.errors.join('; '));
+    });
+
+    await check('hero theme: picker, full mission, shared records', async () => {
+      const page = await open(browser, 'Pixel 7', { theme: 'hero' });
+      assert(await page.$eval('#launch', e => e.textContent) === '出發！', 'hero launch label');
+      await page.click('#toPaste');
+      await page.fill('#paste', 'apple\nice cream');
+      await page.click('#clean');
+      await page.click('#launch');
+      await page.waitForSelector('#vQuiz:not([hidden])');
+      assert(await page.$eval('#bubble', e => !e.hidden), 'goblin taunt bubble shown');
+      let wrongs = 1;
+      for (let guard = 0; guard < 30; guard++) {
+        if (await page.$eval('#vLand', e => !e.hidden)) break;
+        if (await page.$eval('#vResult', e => !e.hidden)) { await page.click('#rNext'); continue; }
+        const phase = await page.evaluate(() => window.__wr.S.phase);
+        await answer(page, !(phase === 'full' && wrongs-- > 0));
+      }
+      assert(await page.$eval('#vLand', e => !e.hidden), 'never reached the chest');
+      assert(await page.$eval('#landArt', e => e.innerHTML.includes('寶箱')), 'chest art');
+      await page.screenshot({ path: path.join(SHOTS, 'hero-win.png') });
+      await page.click('#setBtn');
+      await page.selectOption('#theme', 'space');
+      await page.reload();
+      assert(await page.$eval('#vPick', e => e.hidden), 'picker shown again after a theme was chosen');
+      assert(await page.$eval('#launch', e => e.textContent) === '發射！', 'space label after switching');
+      assert(await page.$eval('#planetN', e => e.textContent) === '1', 'medal counted as a planet in the shared record');
+      assert(page.errors.length === 0, page.errors.join('; '));
+    });
+
+    await check('WR-2 offline: page, practice and cached photo recognition', async () => {
+      const ctx = await browser.newContext({ ...devices['Galaxy Tab S4'] });
+      const page = await ctx.newPage();
+      page.errors = []; page.on('pageerror', e => page.errors.push(e.message));
+      await page.goto(URL);
+      await page.waitForFunction(() => navigator.serviceWorker.controller || navigator.serviceWorker.ready.then(() => true), null, { timeout: 20000 });
+      await page.reload();
+      await page.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 20000 });
+      if (await page.$eval('#vPick', e => !e.hidden)) await page.click('#pickSpace');
+      const first = await uploadPhoto(page, 'mild.jpg');
+      assert(first.length === 16, 'online recognition ' + first.length);
+      await ctx.setOffline(true);
+      await page.reload();
+      assert(await page.$eval('#vHome', e => !e.hidden), 'home shows offline');
+      const second = await uploadPhoto(page, 'clean.png');
+      await page.screenshot({ path: path.join(SHOTS, 'offline-photo.png') });
+      assert(second.length === 16, 'offline recognition ' + second.length);
+      await page.click('#launch');
+      await page.waitForSelector('#vQuiz:not([hidden])');
+      await ctx.setOffline(false);
+      assert(page.errors.length === 0, page.errors.join('; '));
+      await ctx.close();
+    });
+
+    await check('WR-3 hints: few words, missing voice, in-app browser', async () => {
+      const page = await open(browser, 'Galaxy Tab S4');
+      const got = await uploadPhoto(page, 'one-word.png');
+      assert(same(got, ['telescope']), JSON.stringify(got));
+      assert(await page.$eval('#fewNote', e => !e.hidden), 'few-words hint');
+      await page.click('#setBtn');
+      await page.selectOption('#accent', 'en-GB');
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: path.join(SHOTS, 'voice-hint.png') });
+      const hasGb = await page.evaluate(() => speechSynthesis.getVoices().some(v => /en[-_]GB/i.test(v.lang)));
+      assert(await page.$eval('#voiceMsg', e => !e.hidden) === !hasGb, 'voice hint matches the installed voices');
+      assert(await page.$eval('#inAppNote', e => e.hidden), 'no in-app banner in Chrome');
+      const inApp = await open(browser, 'Galaxy Tab S4', { userAgent: devices['Galaxy Tab S4'].userAgent.replace(')', '; wv)') });
+      assert(await inApp.$eval('#inAppNote', e => !e.hidden), 'in-app banner in a WebView');
     });
 
     for (const [device, shot] of [['Galaxy S5', 's5-wrong.png'], ['Galaxy Tab S4 landscape', 'tab-landscape.png']]) {
@@ -153,7 +224,7 @@ async function uploadPhoto(page, file) {
 
     await check('lane 10 mistake book clears after two right answers', async () => {
       const page = await open(browser, 'Pixel 7');
-      await page.evaluate(() => localStorage.setItem('wordRocket.v1', JSON.stringify({ lists: {}, book: { apple: 0 }, planets: [], settings: { bookOn: true, rate: 0.9, accent: 'en-US' } })));
+      await page.evaluate(() => localStorage.setItem('wordRocket.v1', JSON.stringify({ lists: {}, book: { apple: 0 }, planets: [], settings: { bookOn: true, rate: 0.9, accent: 'en-US', theme: 'space' } })));
       await page.reload();
       await page.click('#bookBtn');
       await page.click('#bGo');
