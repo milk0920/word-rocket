@@ -207,10 +207,11 @@ async function uploadPhoto(page, file) {
     await check('version label and the reason speech stays silent', async () => {
       const fake = mode => {
         if (mode === 'none') { Object.defineProperty(window, 'speechSynthesis', { value: undefined }); return; }
-        const s = { speaking: false, paused: false, getVoices: () => [], cancel() {}, resume() { s.paused = false; },
+        const s = { speaking: false, paused: false, pending: false, getVoices: () => [], cancel() {}, resume() { s.paused = false; },
           addEventListener() {}, speak(u) {
             if (mode === 'error') setTimeout(() => u.onerror && u.onerror({ error: 'not-allowed' }), 10);
             if (mode === 'ok') setTimeout(() => u.onstart && u.onstart(), 10);
+            if (mode === 'stuck') s.speaking = true;
           } };
         Object.defineProperty(window, 'speechSynthesis', { value: s });
       };
@@ -228,8 +229,21 @@ async function uploadPhoto(page, file) {
         await page.click('#launch');
         await page.waitForSelector('#vQuiz:not([hidden])');
         await page.click('#say');
-        await page.waitForTimeout(3800);
+        await page.waitForTimeout(mode === 'stuck' ? 5400 : 3800);
         const note = await page.$eval('#vQuiz .speak-note', e => e.hidden ? '' : e.textContent);
+        if (mode === 'error' || mode === 'stuck') {
+          const log = await page.evaluate(() => window.__wr.logText());
+          assert(/版本 \d+\.\d+・/.test(log) && /\d\d:\d\d:\d\d\.\d{3} speak "\w+" rate/.test(log), 'log has the header and the spoken word: ' + log);
+          assert(log.includes(mode === 'error' ? 'error not-allowed' : 'stuck [s1p0q0]'), 'log has the ' + mode + ' event: ' + log);
+          assert(await page.evaluate(() => JSON.parse(localStorage.getItem('wordRocket.speechLog')).length <= 50), 'log is capped');
+        }
+        if (mode === 'error') {
+          await page.click('#quit');
+          await page.click('#setBtn');
+          await page.click('#copyLog');
+          await page.waitForSelector('#logMsg:not([hidden])');
+          assert(await page.$eval('#logMsg', e => /複製/.test(e.textContent)), 'copy button answers');
+        }
         await ctx.close();
         return note;
       };
@@ -238,6 +252,8 @@ async function uploadPhoto(page, file) {
       const silent = await run('silent');
       assert(silent.includes('語音引擎沒有開始念') && silent.includes('英文語音 0 個'), 'never-started reason shown: ' + silent);
       assert(await run('ok') === '', 'no note when speech starts');
+      const stuck = await run('stuck');
+      assert(stuck.includes('語音卡住了'), 'an engine that says speaking but never starts is reported: ' + stuck);
       const none = await run('none');
       assert(none.includes('這個瀏覽器不能發音') && none.includes('LINE 內建瀏覽器 14') && none.includes('語音無'), 'missing-speech reason names the browser: ' + none);
     });
